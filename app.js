@@ -10,7 +10,8 @@ const STORAGE='pianorules.v1';
 const state = {
   midi:null, inputSelection:'all', outputSelection:'', inputChannel:'all', outputChannel:1,
   running:false, rules:[], sequences:new Map(), held:new Set(), noteHistory:[], timers:new Set(),
-  startedAt:0, likelyEchoes:new Map(), assets:new Map(), chordFire:new Map()
+  startedAt:0, likelyEchoes:new Map(), assets:new Map(), chordFire:new Map(),
+  engineGeneration:0, appliedSource:''
 };
 
 function loadPrefs(){
@@ -36,7 +37,13 @@ function savePrefs(){
     outputSignature:getPortSignature(findOutput(state.outputSelection))
   }));
 }
-editor.addEventListener('input', savePrefs);
+function updateEditorState(){
+  if(state.running && editor.value !== state.appliedSource){
+    parseStatus.textContent='changes pending · click Apply changes';
+    $('#runButton').textContent='Apply changes';
+  }
+}
+editor.addEventListener('input',()=>{savePrefs();updateEditorState();});
 ['fullscreenPreference','echoGuard','echoGuardMs'].forEach(id=>$('#'+id).addEventListener('change',savePrefs));
 
 for(let i=1;i<=16;i++){
@@ -157,34 +164,78 @@ function processNote(note,velocity,channel,now){
 }
 
 function addTimer(id){state.timers.add(id);return id;}
-function schedule(fn,ms){const id=setTimeout(()=>{state.timers.delete(id); if(state.running)fn();},Math.max(0,ms));return addTimer(id);}
+function schedule(fn,ms,generation=state.engineGeneration){
+  const id=setTimeout(()=>{
+    state.timers.delete(id);
+    if(state.running && state.engineGeneration===generation) fn();
+  },Math.max(0,ms));
+  return addTimer(id);
+}
 function clearTimers(){for(const id of state.timers)clearTimeout(id); state.timers.clear();}
 
 function startEngine(){
-  panic(true);
-  const parsed=parseScript(editor.value); state.rules=parsed.rules;state.sequences=parsed.sequences;
+  // Always compile the text that is currently visible in the editor.
+  // Invalid edits stop the old engine instead of silently leaving stale rules active.
+  const source=editor.value;
+  savePrefs();
+  const parsed=parseScript(source);
   diagnostics.innerHTML=parsed.errors.map(e=>`<div>${escapeHtml(e)}</div>`).join('');
-  if(parsed.errors.length){parseStatus.textContent=`${parsed.errors.length} error${parsed.errors.length>1?'s':''}`; return false;}
-  state.running=true; state.startedAt=performance.now(); state.noteHistory=[]; state.chordFire.clear();
-  $('#engineStatus').textContent='running'; $('#engineStatus').className='status running'; $('#runButton').textContent='Restart rules';
+
+  // Invalidate every callback belonging to the previous rule set before installing a new one.
+  panic(true);
+  state.rules=[];
+  state.sequences=new Map();
+
+  if(parsed.errors.length){
+    parseStatus.textContent=`${parsed.errors.length} error${parsed.errors.length>1?'s':''} · rules stopped`;
+    $('#runButton').textContent='Fix & run rules';
+    ruleFired.textContent='rules not running — fix the errors above';
+    return false;
+  }
+
+  state.rules=parsed.rules;
+  state.sequences=parsed.sequences;
+  state.appliedSource=source;
+  state.running=true;
+  state.startedAt=performance.now();
+  state.noteHistory=[];
+  state.chordFire.clear();
+  $('#engineStatus').textContent='running';
+  $('#engineStatus').className='status running';
+  $('#runButton').textContent='Restart rules';
   parseStatus.textContent=`${state.rules.length} rules · ${state.sequences.size} sequences`;
+  ruleFired.textContent='new rules applied — waiting for a trigger…';
+
+  const generation=state.engineGeneration;
   for(const rule of state.rules){
     const tr=rule.trigger;
-    if(tr.kind==='after') schedule(()=>fireRule(rule,{note:60,velocity:64,channel:state.outputChannel}),tr.delay);
-    if(tr.kind==='every') recurring(rule,tr.interval,tr.interval);
-    if(tr.kind==='everyRandom') recurringRandom(rule,tr.min,tr.max);
+    if(tr.kind==='after') schedule(()=>fireRule(rule,{note:60,velocity:64,channel:state.outputChannel},generation),tr.delay,generation);
+    if(tr.kind==='every') recurring(rule,tr.interval,tr.interval,generation);
+    if(tr.kind==='everyRandom') recurringRandom(rule,tr.min,tr.max,generation);
   }
   return true;
 }
-function recurring(rule,first,interval){schedule(()=>{fireRule(rule,{note:60,velocity:64,channel:state.outputChannel});recurring(rule,interval,interval);},first);}
-function recurringRandom(rule,min,max){const delay=min+Math.random()*(max-min);schedule(()=>{fireRule(rule,{note:60,velocity:64,channel:state.outputChannel});recurringRandom(rule,min,max);},delay);}
+function recurring(rule,first,interval,generation=state.engineGeneration){
+  schedule(()=>{
+    fireRule(rule,{note:60,velocity:64,channel:state.outputChannel},generation);
+    recurring(rule,interval,interval,generation);
+  },first,generation);
+}
+function recurringRandom(rule,min,max,generation=state.engineGeneration){
+  const delay=min+Math.random()*(max-min);
+  schedule(()=>{
+    fireRule(rule,{note:60,velocity:64,channel:state.outputChannel},generation);
+    recurringRandom(rule,min,max,generation);
+  },delay,generation);
+}
 
-async function fireRule(rule,ctx){
+async function fireRule(rule,ctx,generation=state.engineGeneration){
+  if(!state.running || state.engineGeneration!==generation) return;
   ruleFired.textContent=`line ${rule.line}: ${describeTrigger(rule.trigger)}`;
   let cursor=0;
   for(const action of rule.actions){
     if(action.kind==='wait'){cursor+=action.duration;continue;}
-    executeAction(action,ctx,cursor);
+    executeAction(action,ctx,cursor,generation);
   }
 }
 function describeTrigger(t){
@@ -195,16 +246,16 @@ function describeTrigger(t){
   return t.kind==='everyRandom'?`random timer ${t.min}–${t.max}ms`:t.kind;
 }
 
-function executeAction(action,ctx,baseDelay=0){
-  if(action.kind==='panic'){schedule(()=>panic(false),baseDelay);return;}
+function executeAction(action,ctx,baseDelay=0,generation=state.engineGeneration){
+  if(action.kind==='panic'){schedule(()=>panic(false),baseDelay,generation);return;}
   if(action.kind==='sequence'){
     const actions=state.sequences.get(action.name); if(!actions){log(outputLog,`unknown sequence ${action.name}`);return;}
     let cursor=baseDelay;
-    for(const a of actions){if(a.kind==='wait')cursor+=a.duration; else executeAction(a,ctx,cursor);}
+    for(const a of actions){if(a.kind==='wait')cursor+=a.duration; else executeAction(a,ctx,cursor,generation);}
     return;
   }
-  if(action.kind==='sound'){schedule(()=>playSound(action.source),baseDelay);return;}
-  if(action.kind==='midi'){schedule(()=>playMidiAsset(action.source),baseDelay);return;}
+  if(action.kind==='sound'){schedule(()=>playSound(action.source,generation),baseDelay,generation);return;}
+  if(action.kind==='midi'){schedule(()=>playMidiAsset(action.source,generation),baseDelay,generation);return;}
   if(action.kind!=='notes')return;
 
   let interval=action.every||0, elapsed=baseDelay+(action.after||0);
@@ -216,7 +267,7 @@ function executeAction(action,ctx,baseDelay=0){
         const note=resolveTarget(target,ctx.note??60), vel=resolveVelocity(action.velocity,ctx.velocity??64), ch=action.channel||state.outputChannel||1;
         sendNote(note,vel,ch,action.duration);
       }
-    },elapsed);
+    },elapsed,generation);
     elapsed += interval; interval *= action.accelerate||1;
   }
 }
@@ -231,6 +282,7 @@ function sendNote(note,velocity,channel=1,duration=220){
   const id=setTimeout(()=>{sendBytes([off,note,0]); state.timers.delete(id);},Math.max(10,duration)); state.timers.add(id);
 }
 function panic(stopEngine=true){
+  if(stopEngine) state.engineGeneration++;
   clearTimers();
   for(let ch=1;ch<=16;ch++){sendBytes([0xb0+(ch-1),123,0]);sendBytes([0xb0+(ch-1),120,0]);}
   if(stopEngine){state.running=false;$('#engineStatus').textContent='stopped';$('#engineStatus').className='status stopped';$('#runButton').textContent='Run rules';}
@@ -244,8 +296,8 @@ async function getAsset(source){
   if(state.assets.has(source))return state.assets.get(source);
   const resp=await fetch(source);if(!resp.ok)throw new Error(`Could not load ${source}`);return{name:source,type:resp.headers.get('content-type')||guessType(source),data:await resp.arrayBuffer()};
 }
-async function playSound(source){try{const a=await getAsset(source), blob=new Blob([a.data],{type:a.type}), url=URL.createObjectURL(blob), audio=new Audio(url);audio.addEventListener('ended',()=>URL.revokeObjectURL(url),{once:true});await audio.play();log(outputLog,`sound ${source}`);}catch(e){log(outputLog,`sound error: ${e.message}`);}}
-async function playMidiAsset(source){try{const a=await getAsset(source), mf=parseMidiFile(a.data);for(const e of mf.events){schedule(()=>{const ch=e.channel||state.outputChannel;const status=(e.status==='on'?0x90:0x80)+((ch-1)&15);if(e.status==='on')state.likelyEchoes.set(`${ch}:${e.note}`,performance.now());sendBytes([status,e.note,e.status==='on'?e.velocity:0]);$('#outputHero').textContent=midiToNoteName(e.note);$('#outputVelocity').textContent=`${e.status==='on'?`velocity ${e.velocity}`:'off'} · ch ${ch}`;log(outputLog,`${midiToNoteName(e.note)} ${e.status==='on'?`vel ${e.velocity}`:'off'}  [${source}]`);},e.time);}log(outputLog,`MIDI ${source} · ${mf.events.length} events`);}catch(e){log(outputLog,`MIDI error: ${e.message}`);}}
+async function playSound(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const blob=new Blob([a.data],{type:a.type}), url=URL.createObjectURL(blob), audio=new Audio(url);audio.addEventListener('ended',()=>URL.revokeObjectURL(url),{once:true});await audio.play();log(outputLog,`sound ${source}`);}catch(e){log(outputLog,`sound error: ${e.message}`);}}
+async function playMidiAsset(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const mf=parseMidiFile(a.data);for(const e of mf.events){schedule(()=>{const ch=e.channel||state.outputChannel;const status=(e.status==='on'?0x90:0x80)+((ch-1)&15);if(e.status==='on')state.likelyEchoes.set(`${ch}:${e.note}`,performance.now());sendBytes([status,e.note,e.status==='on'?e.velocity:0]);$('#outputHero').textContent=midiToNoteName(e.note);$('#outputVelocity').textContent=`${e.status==='on'?`velocity ${e.velocity}`:'off'} · ch ${ch}`;log(outputLog,`${midiToNoteName(e.note)} ${e.status==='on'?`vel ${e.velocity}`:'off'}  [${source}]`);},e.time,generation);}log(outputLog,`MIDI ${source} · ${mf.events.length} events`);}catch(e){log(outputLog,`MIDI error: ${e.message}`);}}
 
 const assetDrop=$('#assetDrop');
 ['dragenter','dragover'].forEach(ev=>assetDrop.addEventListener(ev,e=>{e.preventDefault();assetDrop.classList.add('drag');}));

@@ -1,6 +1,12 @@
-# [PianoRules](https://muk-research.github.io/PianoRules/)
+# PianoRules
 
 A static, browser-based MIDI rule engine for performer–player-piano interaction. It is designed for GitHub Pages and does not require a server.
+
+## Editing rules while playing
+
+You can edit the rule text during a performance. As soon as the editor differs from the running rules, the top button changes to **Apply changes**. Click it (or press **Cmd+Enter** on macOS / **Ctrl+Enter** on Windows/Linux) to stop the previous rule set, parse the current editor contents, and immediately start the new rules. Timed and random processes are restarted from that moment.
+
+If the edited script contains a syntax error, PianoRules stops the previous rule engine rather than silently continuing with stale rules. Fix the error and press **Fix & run rules**.
 
 ## What it does
 
