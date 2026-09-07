@@ -106,3 +106,6 @@ dialog::backdrop { background:#000a; }
 .footer-credit a { color:#8f9ba7; text-decoration:none; }
 .footer-credit a:hover { color:var(--accent); }
 @media (max-width:1100px){ .footer-credit{display:none;} }
+
+/* v6 — shareable ruleset loader */
+.ruleset-badge { font-size:.72rem; padding:3px 7px; border-radius:999px; border:1px solid #44515d; color:#c8d2dc; background:#151a1f; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

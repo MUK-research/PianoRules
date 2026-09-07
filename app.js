@@ -1,5 +1,6 @@
 import { DEFAULT_RULES, parseScript, midiToNoteName, velocityMatches, resolveVelocity, resolveTarget, normalizeSectionName } from './dsl.js';
 import { parseMidiFile } from './midi-file.js';
+import { loadRuleset, rulesetFromLocation, resolveRulesetAssetUrl } from './ruleset-loader.js';
 
 const $=s=>document.querySelector(s);
 const editor=$('#editor'), editorHighlight=$('#editorHighlight'), diagnostics=$('#diagnostics'), parseStatus=$('#parseStatus');
@@ -14,7 +15,8 @@ const state={
   held:new Set(),heldInputs:new Map(),noteHistory:[],timers:new Set(),activeAudio:new Set(),
   startedAt:0,likelyEchoes:new Map(),assets:new Map(),remoteAssets:new Map(),assetBaseUrl:'',assetUrls:new Map(),
   chordFire:new Map(),sequencePlaying:new Map(),whileStates:new Map(),
-  engineGeneration:0,applyGeneration:0,appliedSource:''
+  engineGeneration:0,applyGeneration:0,appliedSource:'',
+  rulesetRef:'',rulesetLabel:'',rulesetUrl:'',rulesetBaseUrl:'',rulesetAssetBaseUrl:''
 };
 
 function loadPrefs(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}');}catch{return {};}}
@@ -27,8 +29,9 @@ state.inputSelection=prefs.inputSelection||'all';state.outputSelection=prefs.out
 state.inputChannel=prefs.inputChannel||'all';state.outputChannel=prefs.outputChannel||1;
 
 function savePrefs(){
+  const previous=loadPrefs();
   localStorage.setItem(STORAGE,JSON.stringify({
-    rules:editor.value,fullscreen:$('#fullscreenPreference').checked,echoGuard:$('#echoGuard').checked,
+    rules:state.rulesetRef?(previous.rules||DEFAULT_RULES):editor.value,fullscreen:$('#fullscreenPreference').checked,echoGuard:$('#echoGuard').checked,
     echoGuardMs:Number($('#echoGuardMs').value)||0,inputSelection:state.inputSelection,outputSelection:state.outputSelection,
     inputChannel:state.inputChannel,outputChannel:state.outputChannel,inputSignature:getPortSignature(findInput(state.inputSelection)),
     outputSignature:getPortSignature(findOutput(state.outputSelection))
@@ -153,7 +156,7 @@ async function startEngine(preferredSection=''){
   if(parsed.errors.length){parseStatus.textContent=`${parsed.errors.length} error${parsed.errors.length>1?'s':''} · rules stopped`;$('#runButton').textContent='Fix & run rules';ruleFired.textContent='rules not running — fix the errors above';updateActiveSectionUI();return false;}
 
   const runButton=$('#runButton');runButton.disabled=true;runButton.textContent='Loading assets…';parseStatus.textContent='preloading referenced assets…';
-  const assetErrors=await preloadReferencedAssets(parsed);
+  const assetErrors=await preloadReferencedAssets(parsed,state.rulesetBaseUrl);
   if(applyGeneration!==state.applyGeneration)return false;
   runButton.disabled=false;
   if(assetErrors.length){
@@ -199,15 +202,8 @@ async function storeAsset(file){const db=await openDb(),data=await file.arrayBuf
 async function loadAssets(){try{const db=await openDb(),rows=await new Promise((res,rej)=>{const r=db.transaction('assets').objectStore('assets').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});rows.forEach(x=>state.assets.set(x.name,x));if(rows.length)$('#assetDrop').textContent=`${rows.length} saved local asset${rows.length===1?'':'s'} · drop more here`;}catch{}}
 function guessType(n){if(/\.mid(i)?(?:$|[?#])/i.test(n))return'audio/midi';if(/\.wav(?:$|[?#])/i.test(n))return'audio/wav';if(/\.mp3(?:$|[?#])/i.test(n))return'audio/mpeg';if(/\.m4a(?:$|[?#])/i.test(n))return'audio/mp4';if(/\.ogg(?:$|[?#])/i.test(n))return'audio/ogg';return'application/octet-stream';}
 function isAbsoluteUrl(value){try{const u=new URL(value,location.href);return /^https?:$/i.test(u.protocol)&&/^[a-z][a-z0-9+.-]*:/i.test(String(value));}catch{return false;}}
-function resolveRemoteAssetUrl(source,parsed){
-  if(parsed.assetUrls?.has(source))return new URL(parsed.assetUrls.get(source),location.href).href;
-  if(isAbsoluteUrl(source))return new URL(source,location.href).href;
-  if(parsed.assetBaseUrl){
-    const base=new URL(parsed.assetBaseUrl,location.href),baseHref=base.href.endsWith('/')?base.href:base.href+'/';
-    return new URL(source,baseHref).href;
-  }
-  return '';
-}
+function resolveRemoteAssetUrl(source,parsed,rulesBaseUrl=''){return resolveRulesetAssetUrl(source,parsed,rulesBaseUrl,location.href);}
+
 function collectReferencedAssets(parsed){
   const refs=new Set();
   const scan=actions=>{for(const action of actions){if(action.kind==='sound'||action.kind==='midi')refs.add(action.source);}};
@@ -219,10 +215,10 @@ async function fetchAsset(url,name){
   if(!resp.ok)throw new Error(`${resp.status} ${resp.statusText}`);
   return{name,type:resp.headers.get('content-type')||guessType(name||url),data:await resp.arrayBuffer(),url};
 }
-async function preloadReferencedAssets(parsed){
+async function preloadReferencedAssets(parsed,rulesBaseUrl=''){
   state.remoteAssets.clear();const refs=collectReferencedAssets(parsed),errors=[];let loaded=0;
   for(const source of refs){
-    const url=resolveRemoteAssetUrl(source,parsed);
+    const url=resolveRemoteAssetUrl(source,parsed,rulesBaseUrl);
     if(url){
       try{const asset=await fetchAsset(url,source);state.remoteAssets.set(source,asset);loaded++;log(outputLog,`asset ready: ${source}`);}
       catch(e){errors.push(`Could not preload “${source}” from ${url}: ${e.message}. The host must permit browser/CORS access.`);}
@@ -243,6 +239,34 @@ async function getAsset(source){
 }
 async function playSound(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const blob=new Blob([a.data],{type:a.type}),url=URL.createObjectURL(blob),audio=new Audio(url);state.activeAudio.add(audio);const done=()=>{state.activeAudio.delete(audio);URL.revokeObjectURL(url);};audio.addEventListener('ended',done,{once:true});audio.addEventListener('error',done,{once:true});await audio.play();log(outputLog,`sound ${source}`);}catch(e){log(outputLog,`sound error: ${e.message}`);}}
 async function playMidiAsset(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const mf=parseMidiFile(a.data);for(const e of mf.events){schedule(()=>{const ch=e.channel||state.outputChannel,status=(e.status==='on'?0x90:0x80)+((ch-1)&15);markLikelyEcho(e.note,ch,e.status==='on'?'on':'off');sendBytes([status,e.note,e.status==='on'?e.velocity:0]);$('#outputHero').textContent=midiToNoteName(e.note);$('#outputVelocity').textContent=`${e.status==='on'?`velocity ${e.velocity}`:'off'} · ch ${ch}`;log(outputLog,`${midiToNoteName(e.note)} ${e.status==='on'?`vel ${e.velocity}`:'off'}  [${source}]`);},e.time,generation);}log(outputLog,`MIDI ${source} · ${mf.events.length} events`);}catch(e){log(outputLog,`MIDI error: ${e.message}`);}}
+
+
+function clearRulesetContext(){
+  state.rulesetRef='';state.rulesetLabel='';state.rulesetUrl='';state.rulesetBaseUrl='';state.rulesetAssetBaseUrl='';
+  const badge=$('#rulesetBadge');if(badge){badge.hidden=true;badge.textContent='';badge.removeAttribute('title');}
+  document.title='PianoRules — browser MIDI rule engine';
+}
+function showRulesetContext(info){
+  state.rulesetRef=info.ref;state.rulesetLabel=info.label;state.rulesetUrl=info.url;state.rulesetBaseUrl=info.baseUrl;state.rulesetAssetBaseUrl=info.assetBaseUrl;
+  const badge=$('#rulesetBadge');if(badge){badge.hidden=false;badge.textContent=info.label;badge.title=info.url;}
+  document.title=`PianoRules — ${info.label}`;
+}
+async function initializeRulesetFromQuery(){
+  const ref=rulesetFromLocation();if(!ref)return;
+  const startButton=$('#startButton');startButton.disabled=true;startButton.textContent='LOADING RULESET…';
+  $('#startError').textContent='';parseStatus.textContent='loading shared ruleset…';
+  try{
+    const info=await loadRuleset(ref,{appUrl:location.href});
+    showRulesetContext(info);editor.value=info.source;state.appliedSource='';
+    syncEditorHighlight();updateActiveSectionUI();
+    parseStatus.textContent=`loaded ${info.label} · ready to start`;
+    ruleFired.textContent=`ruleset “${info.label}” loaded — press Start Performance`;
+  }catch(error){
+    clearRulesetContext();
+    const message=`Ruleset could not be loaded: ${error.message}`;
+    $('#startError').textContent=message;diagnostics.innerHTML=`<div>${escapeHtml(message)}</div>`;parseStatus.textContent='ruleset load failed · local rules kept';
+  }finally{startButton.disabled=false;startButton.textContent='START PERFORMANCE';}
+}
 
 const assetDrop=$('#assetDrop');['dragenter','dragover'].forEach(ev=>assetDrop.addEventListener(ev,e=>{e.preventDefault();assetDrop.classList.add('drag');}));['dragleave','drop'].forEach(ev=>assetDrop.addEventListener(ev,e=>{e.preventDefault();assetDrop.classList.remove('drag');}));assetDrop.addEventListener('drop',async e=>{for(const f of e.dataTransfer.files)await storeAsset(f);assetDrop.textContent=`${state.assets.size} saved asset${state.assets.size===1?'':'s'} · drop more here`;});
 
@@ -268,7 +292,7 @@ function insertExample(code){
 }
 $('#examplesButton').addEventListener('click',()=>{const list=$('#examplesList');list.innerHTML='';for(const[name,code]of EXAMPLES){const d=document.createElement('div');d.className='example';d.innerHTML=`<h3>${escapeHtml(name)}</h3><pre>${escapeHtml(code)}</pre><button type="button">Add to current section</button>`;d.querySelector('button').onclick=()=>{insertExample(code);savePrefs();updateEditorState();$('#examplesDialog').close();};list.appendChild(d);}$('#examplesDialog').showModal();});
 $('#exportButton').addEventListener('click',()=>{const blob=new Blob([editor.value],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='performance.rules';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
-$('#importInput').addEventListener('change',async e=>{const f=e.target.files[0];if(f){editor.value=await f.text();savePrefs();syncEditorHighlight();await startEngine();}e.target.value='';});
+$('#importInput').addEventListener('change',async e=>{const f=e.target.files[0];if(f){clearRulesetContext();editor.value=await f.text();savePrefs();syncEditorHighlight();await startEngine();}e.target.value='';});
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function sectionRanges(source){
@@ -296,3 +320,4 @@ function syncEditorScroll(){if(!editorHighlight)return;editorHighlight.scrollTop
 
 window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();void startEngine();}});window.addEventListener('beforeunload',()=>panic(false));
 syncEditorHighlight();updateActiveSectionUI();
+void initializeRulesetFromQuery();

@@ -50,6 +50,65 @@ The shared Drive folder remains a convenient communal library: download an asset
 
 For **automatic runtime preloading**, use a same-origin or CORS-enabled static host (for example an `assets/` folder in the PianoRules GitHub Pages repository). A Google Drive folder is not a normal web directory, and Drive's public download endpoints are not reliably fetchable from browser JavaScript because of CORS restrictions.
 
+## Shareable piece links with `?ruleset=`
+
+PianoRules can load a complete piece directly from the page URL. This makes one link enough to open a particular score, preload its assets, and prepare it for performance.
+
+### Piece in the built-in `Library/`
+
+Use this repository layout:
+
+```text
+Library/
+  Cage/
+    Cage.rules
+    assets/
+      prepared-piano.mid
+      radio.wav
+```
+
+Then share:
+
+```text
+https://<username>.github.io/<pianorules-repo>/?ruleset=Cage
+```
+
+The short name `Cage` resolves to `Library/Cage/Cage.rules`. If the rules file does not declare `assets from ...`, PianoRules automatically treats `Library/Cage/assets/` as its asset folder.
+
+### Piece in another GitHub repository
+
+A repository can be self-contained:
+
+```text
+Rule-Gamelan/
+  Gamelan.rules
+  assets/
+    gong.wav
+    pattern.mid
+```
+
+Share the PianoRules page with the repository URL as the `ruleset` value. URL-encoding the value is safest:
+
+```text
+?ruleset=https%3A%2F%2Fgithub.com%2FAdrianArtacho%2FRule-Gamelan
+```
+
+For a GitHub repository URL, PianoRules derives the piece name from the repository (`Rule-Gamelan` → `Gamelan`) and looks for `Gamelan.rules` in `main`, then `master`. A repository named simply `Gamelan` also resolves to `Gamelan.rules`.
+
+You can alternatively pass an exact GitHub `blob/.../*.rules` URL.
+
+### Direct `.rules` file elsewhere
+
+Any public, CORS-accessible direct `.rules` URL can be used:
+
+```text
+?ruleset=https%3A%2F%2Fexample.org%2Fpieces%2FClouds%2FClouds.rules
+```
+
+Relative asset declarations are resolved relative to the loaded `.rules` file. With no explicit declaration, PianoRules defaults to an `assets/` folder beside that file.
+
+A URL-loaded piece is displayed in the editor before **START PERFORMANCE**. It still passes through the normal PianoRules parser and asset-preload stage; remote repositories cannot inject JavaScript into PianoRules.
+
 ## Rule language
 
 ### Sections

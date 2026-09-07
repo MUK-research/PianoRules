@@ -717,6 +717,79 @@ The most interesting rules are often not the most complicated ones. A very small
 
 ---
 
+
+# Sharing a piece with one URL
+
+A complete PianoRules work can live outside the main application and be opened through the `ruleset` URL parameter.
+
+## A piece in the PianoRules `Library`
+
+Organize a work like this:
+
+```text
+Library/
+  Cage/
+    Cage.rules
+    assets/
+      sound.wav
+      gesture.mid
+```
+
+Then open or share:
+
+```text
+https://YOUR-PAGES-URL/?ruleset=Cage
+```
+
+`Cage` means `Library/Cage/Cage.rules`. The neighboring `Library/Cage/assets/` directory becomes the default asset folder automatically, so the score may simply say:
+
+```text
+when note C4:
+  play sound "sound.wav"
+```
+
+An explicit `assets from ...` declaration still overrides the default.
+
+## A piece in its own GitHub repository
+
+A self-contained repository can look like:
+
+```text
+Rule-Gamelan/
+  Gamelan.rules
+  assets/
+    gong.wav
+    interlock.mid
+```
+
+The share link can point PianoRules at the repository:
+
+```text
+?ruleset=https%3A%2F%2Fgithub.com%2FAdrianArtacho%2FRule-Gamelan
+```
+
+For repository URLs, PianoRules uses the naming convention `Rule-Gamelan` → `Gamelan.rules` (or `Gamelan` → `Gamelan.rules`) and tries the `main` branch first, then `master`.
+
+An exact GitHub link to a `.rules` file, such as a `blob/main/...rules` URL, is also accepted.
+
+## A `.rules` file on another public host
+
+Use the direct URL to the file:
+
+```text
+?ruleset=https%3A%2F%2Fexample.org%2Fpieces%2FClouds%2FClouds.rules
+```
+
+The host must permit browser/CORS access. Relative asset paths and declarations are resolved relative to the loaded score, not relative to the PianoRules application.
+
+## What happens when somebody opens the link?
+
+PianoRules fetches the score into the editor before the performer presses **START PERFORMANCE**. When performance starts, the normal parser validates the score and all referenced assets are preloaded. A remote ruleset is still only PianoRules grammar: code from the remote repository is not executed as JavaScript.
+
+This makes the URL itself a practical performance/distribution object: one link identifies the work, while the work's repository contains its score and media.
+
+---
+
 # Credits
 
 **PianoRules** was created by **Adrián Artacho**, composer and educator at the [Music and Arts University of the City of Vienna (MUK)](https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html).

@@ -37,6 +37,7 @@
     <a href="#actions">Actions</a>
     <a href="#sequences">Sequences</a>
     <a href="#files">Files</a>
+    <a href="#sharing">Share a piece</a>
     <a href="#explore">Things to explore</a>
     <a href="#reference">Grammar reference</a>
     <a href="#credits">Credits</a>
@@ -224,6 +225,38 @@ performance.rules</code></pre>
       <p>Then use <code>assets from "./assets/"</code>. Same-origin static assets are the simplest and most dependable performance setup.</p>
 
       <div class="callout"><strong>Shared library:</strong> <a target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing">open the communal Google Drive folder</a>, download an interesting asset, then either drag it into PianoRules or copy it into your repository's <code>assets/</code> folder. A Google Drive folder is useful as a library/distribution space, but not as a raw filename-addressable runtime folder; Drive download endpoints are not reliably fetchable from browser JavaScript because of cross-origin restrictions.</div>
+    </section>
+
+
+    <section id="sharing">
+      <h2>Share a piece with one URL</h2>
+      <p>A complete work can live in the PianoRules Library, in its own GitHub repository, or as a public <code>.rules</code> file elsewhere. The <code>ruleset</code> URL parameter tells PianoRules which piece to open.</p>
+
+      <h3>Built-in Library</h3>
+      <pre><code>Library/
+  Cage/
+    Cage.rules
+    assets/
+      sound.wav
+      gesture.mid</code></pre>
+      <pre><code>https://YOUR-PAGES-URL/?ruleset=Cage</code></pre>
+      <p>The short name resolves to <code>Library/Cage/Cage.rules</code>. Without an explicit <code>assets from ...</code> declaration, <code>Library/Cage/assets/</code> is used automatically.</p>
+
+      <h3>Another GitHub repository</h3>
+      <pre><code>Rule-Gamelan/
+  Gamelan.rules
+  assets/
+    gong.wav
+    interlock.mid</code></pre>
+      <pre><code>?ruleset=https%3A%2F%2Fgithub.com%2FAdrianArtacho%2FRule-Gamelan</code></pre>
+      <p>PianoRules interprets <code>Rule-Gamelan</code> as the piece <code>Gamelan</code> and looks for <code>Gamelan.rules</code> in <code>main</code>, then <code>master</code>. A repository named simply <code>Gamelan</code> follows the same convention. Exact GitHub <code>blob/.../*.rules</code> links are accepted too.</p>
+
+      <h3>Direct file elsewhere</h3>
+      <pre><code>?ruleset=https%3A%2F%2Fexample.org%2Fpieces%2FClouds%2FClouds.rules</code></pre>
+      <p>Other hosts should provide a direct public <code>.rules</code> URL and permit browser/CORS access. Relative asset declarations are resolved from the score's own directory.</p>
+
+      <div class="callout"><strong>Self-contained works:</strong> when a score is loaded through <code>ruleset</code> and it has no <code>assets from ...</code> declaration, PianoRules automatically looks in an <code>assets/</code> folder beside the <code>.rules</code> file. The complete piece can therefore travel as one repository or folder.</div>
+      <p>The remote repository supplies only PianoRules text and media. It cannot inject JavaScript into the application; the loaded text still passes through the normal PianoRules parser before it can run.</p>
     </section>
 
     <section id="explore">
