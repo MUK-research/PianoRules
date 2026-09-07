@@ -22,8 +22,8 @@
   <header>
     <div class="brand">
       <strong>PianoRules</strong>
+      <span id="rulesetBadge" class="ruleset-badge" hidden></span>
       <span id="engineStatus" class="status stopped">stopped</span>
-      <span id="rulesetBadge" class="ruleset-badge" hidden title="Loaded from a shareable ruleset URL"></span>
     </div>
     <div class="toolbar">
       <button id="runButton" class="primary">Run rules</button>
@@ -44,6 +44,7 @@
       <div id="inputHero" class="hero-note">—</div>
       <div id="inputVelocity" class="hero-sub">velocity —</div>
       <div id="heldNotes" class="chips"></div>
+      <div id="memoryStatus" class="memory-status">no musical memory</div>
       <div class="log-title">incoming MIDI</div>
       <div id="inputLog" class="log"></div>
     </section>
@@ -52,7 +53,7 @@
       <div class="panel-title">
         <h2>RULES</h2>
         <div class="panel-meta">
-          <span id="activeSectionBadge" class="section-badge" title="Click another section in the editor to activate it">section —</span>
+          <span id="activeSectionBadge" class="section-badge">section —</span>
           <span id="parseStatus">not parsed</span>
         </div>
       </div>
@@ -61,7 +62,7 @@
         <textarea id="editor" wrap="off" spellcheck="false" aria-label="PianoRules editor"></textarea>
       </div>
       <div class="editor-footer">
-        <span>Rules save automatically. <strong>Click a section to activate it.</strong> Edits go live with <strong>Apply changes</strong> or ⌘/Ctrl+Enter.</span>
+        <span>Rules save automatically. Edits go live with <strong>Apply changes</strong> or ⌘/Ctrl+Enter.</span>
         <div>
           <button id="examplesButton">Examples</button>
           <button id="exportButton">Export</button>
@@ -86,7 +87,7 @@
 
   <footer>
     <div><span class="dot" id="midiDot"></span><span id="midiFooter">MIDI not connected</span></div>
-    <div id="assetDrop" class="asset-drop" title="Drop .mid or audio files here; remote assets declared in rules preload on Run">Drop MIDI/audio assets here</div>
+    <div id="assetDrop" class="asset-drop" title="Drop .mid or audio files here">Drop MIDI/audio assets here</div>
     <div class="footer-end"><span id="clock">00:00.000</span><span class="footer-credit">PianoRules by <a href="https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html" target="_blank" rel="noopener">Adrián Artacho</a></span></div>
   </footer>
 
@@ -95,6 +96,7 @@
       <div class="dialog-title"><h2>MIDI setup</h2><button value="cancel" aria-label="Close">×</button></div>
       <label>Input device<select id="inputSelect"></select></label>
       <label>Output device<select id="outputSelect"></select></label>
+      <div class="hint">For quick testing, choose <strong>Browser preview piano</strong>. It makes sound directly in the page without a Disklavier, virtual MIDI port, or DAW.</div>
       <label>Input channel<select id="inputChannel"><option value="all">All channels</option></select></label>
       <label>Output channel<select id="outputChannel"></select></label>
       <label class="check"><input id="fullscreenPreference" type="checkbox" /> Enter fullscreen when performance starts</label>

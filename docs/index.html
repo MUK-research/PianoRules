@@ -1,182 +1,313 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0d0f12">
-  <title>PianoRules — Musical Grammar</title>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>PianoRules - Musical Grammar</title>
   <style>
-    :root{color-scheme:dark;--bg:#0d0f12;--panel:#14181d;--line:#2a3139;--text:#edf2f7;--muted:#93a0ac;--accent:#b9ff66;--code:#0a0d10}
-    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    a{color:var(--accent)} code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
-    .layout{display:grid;grid-template-columns:260px minmax(0,820px);gap:52px;max-width:1160px;margin:auto;padding:48px 28px 100px}
-    nav{position:sticky;top:28px;align-self:start;border:1px solid var(--line);background:var(--panel);padding:20px;border-radius:12px}
-    nav strong{display:block;font-size:1.1rem;margin-bottom:12px} nav a{display:block;color:var(--muted);text-decoration:none;padding:4px 0} nav a:hover{color:var(--text)}
-    .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;color:var(--muted);font-size:.75rem;margin-bottom:8px}
-    h1{font-size:clamp(2.6rem,7vw,5.5rem);letter-spacing:-.055em;line-height:.95;margin:.2em 0 .35em} h2{font-size:2rem;margin-top:2.3em;border-top:1px solid var(--line);padding-top:1.1em} h3{font-size:1.2rem;margin-top:1.8em}
-    p,li{color:#c8d0d8}.lead{font-size:1.2rem;color:#dce3ea;max-width:62ch}.accent{color:var(--accent)}
-    pre{background:var(--code);border:1px solid var(--line);padding:16px 18px;border-radius:10px;overflow:auto;font-size:.9rem;line-height:1.55}
-    .callout{border-left:3px solid var(--accent);background:#11161a;padding:14px 18px;margin:22px 0;color:#cfd8df}
-    .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{border:1px solid var(--line);background:var(--panel);padding:16px;border-radius:10px}.card h3{margin-top:0}
-    .toplinks{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 34px}.button{border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;padding:9px 12px;border-radius:8px}.button.primary{background:var(--accent);color:#101408;border-color:var(--accent);font-weight:700}
-    table{width:100%;border-collapse:collapse;margin:18px 0}td,th{border-bottom:1px solid var(--line);text-align:left;padding:9px 8px;vertical-align:top}th{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em}
-    footer{margin-top:70px;border-top:1px solid var(--line);padding-top:24px;color:var(--muted)}
-    @media(max-width:850px){.layout{display:block;padding:28px 18px 80px}nav{position:static;margin-bottom:34px}.cards{grid-template-columns:1fr}}
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
+  <link rel="stylesheet" href="docs.css" />
 </head>
 <body>
-<div class="layout">
-  <nav>
-    <span class="pill">PIANO ↔ ALGORITHM ↔ PIANO</span>
-    <strong>PianoRules docs</strong>
-    <a href="#idea">The idea</a>
-    <a href="#when">Event triggers</a>
-    <a href="#while">While triggers</a>
-    <a href="#time">Time triggers</a>
-    <a href="#sections">Sections &amp; form</a>
-    <a href="#actions">Actions</a>
-    <a href="#sequences">Sequences</a>
-    <a href="#files">Files</a>
-    <a href="#sharing">Share a piece</a>
-    <a href="#explore">Things to explore</a>
-    <a href="#reference">Grammar reference</a>
-    <a href="#credits">Credits</a>
-  </nav>
-
-  <article>
-    <span class="pill">MUSICAL GRAMMAR</span>
-    <h1>Piano<span class="accent">Rules</span></h1>
-    <p class="lead">A small language for defining relationships between a performer and a MIDI-capable piano. Write <strong>when</strong> something should happen, then write <strong>what</strong> the instrument should do.</p>
-    <div class="toplinks">
-      <a class="button primary" href="../">Open PianoRules</a>
-      <a class="button" target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing">Shared file library</a>
-      <a class="button" href="README.md">Markdown version</a>
-    </div>
-
-    <section id="idea">
-      <h2>The basic idea</h2>
-      <pre><code>trigger:
+<header id="title-block-header">
+<h1 class="title">PianoRules - Musical Grammar</h1>
+</header>
+<h1 id="pianorules-musical-grammar">PianoRules — Musical Grammar</h1>
+<p>PianoRules is a browser-based language for creating relationships
+between a performer and a MIDI-capable instrument. It is designed to
+read like a <strong>description of musical behaviour</strong>, not like
+conventional computer code.</p>
+<p>The basic shape is:</p>
+<pre class="text"><code>trigger:
   action</code></pre>
-      <p>A trigger can be a note, a chord, a dynamic range, a point in time, a random timer, a held key, or another sequence that is currently playing. Actions can produce notes, intervals relative to what you played, chords, repetitions, named sequences, MIDI files, and sound files.</p>
-      <div class="callout">Edit the rules in the browser, then press <strong>Apply changes</strong> or <strong>⌘/Ctrl+Enter</strong>. The new musical logic becomes active immediately.</div>
-    </section>
-
-    <section id="when">
-      <h2>Event triggers: <code>when</code></h2>
-      <div class="cards">
-        <div class="card"><h3>Any note</h3><pre><code>when any note:
-  play +12</code></pre><p>Every played note can become the beginning of a relationship.</p></div>
-        <div class="card"><h3>Specific note</h3><pre><code>when note C4:
-  play G4</code></pre><p>Use note names or MIDI numbers.</p></div>
-        <div class="card"><h3>Dynamics</h3><pre><code>when any note velocity 90..127:
-  play -12 velocity 45</code></pre><p>Different dynamic regions can open different behaviours.</p></div>
-        <div class="card"><h3>Chord</h3><pre><code>when chord [C4 E4 G4] within 180ms:
-  play [D5 F#5 A5]</code></pre><p>A sonority can act like a harmonic password.</p></div>
-      </div>
-    </section>
-
-    <section id="while">
-      <h2>State triggers: <code>while</code></h2>
-      <p><code>when</code> reacts to an event. <code>while</code> remains active for as long as a musical state is true.</p>
-      <h3>While a key is held</h3>
-      <pre><code>while note C4 down every 180ms:
+<p>A trigger says <strong>when</strong> something becomes relevant. An
+action says <strong>what the machine does</strong> in response.</p>
+<p>After editing the code, press <strong>Apply changes</strong> or
+<strong>⌘/Ctrl+Enter</strong>. No page reload is required.</p>
+<hr />
+<h1 id="first-performance">1. First performance</h1>
+<ol type="1">
+<li>Connect a MIDI keyboard, Clavinova, Disklavier, or other MIDI
+controller.</li>
+<li>Open PianoRules in a Web-MIDI-capable desktop browser such as Chrome
+or Edge.</li>
+<li>Press <strong>Start Performance</strong>.</li>
+<li>Open <strong>MIDI</strong> and choose an input and an output.</li>
+<li>For immediate testing without any external sound generator, choose
+<strong>Browser preview piano (built-in)</strong> as the output.</li>
+<li>Edit the rules and press <strong>Apply changes</strong>.</li>
+</ol>
+<p>The MIDI setup is remembered locally by the browser.</p>
+<hr />
+<h1 id="event-triggers-when">2. Event triggers: <code>when</code></h1>
+<h2 id="any-note">Any note</h2>
+<pre class="text"><code>when any note:
+  play +12</code></pre>
+<p>Every incoming note triggers an octave above it.</p>
+<h2 id="a-specific-note">A specific note</h2>
+<pre class="text"><code>when note C4:
+  play G4</code></pre>
+<p>Notes may be written as names such as <code>C4</code>,
+<code>F#3</code>, <code>Bb5</code>, or as MIDI numbers from
+<code>0</code> to <code>127</code>.</p>
+<h2 id="dynamics-as-a-trigger">Dynamics as a trigger</h2>
+<pre class="text"><code>when any note velocity 90..127:
+  play +7 velocity 40</code></pre>
+<p>This makes playing intensity part of the form. Soft and loud gestures
+can open different machine behaviours.</p>
+<h2 id="a-specific-chord">A specific chord</h2>
+<pre class="text"><code>when chord [C4 E4 G4] within 180ms:
+  play [D5 F#5 A5] velocity 60</code></pre>
+<p>The notes may arrive in any order within the indicated time
+window.</p>
+<h2 id="any-newly-played-chord">Any newly played chord</h2>
+<pre class="text"><code>when chord played notes 3..6 within 170ms:
+  remember chord as harmony</code></pre>
+<p>This is different from matching one predefined chord. PianoRules
+gathers the compact chord-like gesture you just played and makes its
+pitches available to the actions below.</p>
+<p><code>notes 3..6</code> means that the detected sonority must contain
+between three and six distinct notes. If omitted, PianoRules accepts a
+broader chord size.</p>
+<p>This trigger is especially useful for pieces in which the performer
+controls the harmony while the computer controls texture, register,
+density, or rhythm.</p>
+<h2 id="phrase-endings">Phrase endings</h2>
+<pre class="text"><code>when phrase ends after 900ms:
+  remember phrase as melody</code></pre>
+<p>A phrase ends when no new note has arrived for the specified amount
+of time. The notes since the previous phrase ending are provided to the
+rule as one captured phrase.</p>
+<p>This is intentionally simple: phrase segmentation is based on
+silence, so the performer can shape the segmentation through timing.</p>
+<hr />
+<h1 id="state-triggers-while">3. State triggers: <code>while</code></h1>
+<p><code>when</code> describes an event. <code>while</code> describes a
+state that remains true.</p>
+<h2 id="while-a-note-is-held">While a note is held</h2>
+<pre class="text"><code>while note C4 down every 180ms:
   play +7 velocity input*0.6 for 80ms</code></pre>
-      <p>Hold C4 and the process continues. Release C4 and future events belonging to that while-rule stop.</p>
-      <h3>While any key is held</h3>
-      <pre><code>while any note down velocity 80..127 every 120ms:
+<p>The process runs only while C4 remains physically down.</p>
+<h2 id="while-any-note-is-held">While any note is held</h2>
+<pre class="text"><code>while any note down every 120ms:
   play +12 velocity input*0.45 for 60ms</code></pre>
-      <p>This turns the physical act of holding the keyboard into a gate for a generative process.</p>
-      <h3>While another sequence is playing</h3>
-      <pre><code>sequence answer:
-  play +12 for 130ms
-  wait 160ms
-  play +7 for 130ms
-  wait 160ms
-  play +3 for 180ms
+<p>A velocity condition can also be added:</p>
+<pre class="text"><code>while any note down velocity 90..127 every 100ms:
+  play -12 velocity 35 for 50ms</code></pre>
+<h2 id="while-a-sequence-is-playing">While a sequence is playing</h2>
+<pre class="text"><code>sequence answer:
+  play +12 for 160ms
+  wait 200ms
+  play +7 for 160ms
 
 when note D4:
   play sequence answer
 
 while sequence answer playing every 220ms:
   play -12 velocity 35 for 80ms</code></pre>
-      <p>The second process exists only during the lifetime of <code>answer</code>. Its relative actions inherit the musical context that launched that sequence.</p>
-      <div class="callout">A sequence's lifetime is calculated from its waits, note durations, repetitions and nested PianoRules sequences. If a sequence contains an audio or MIDI file and you want a precise longer state, add explicit <code>wait</code> time to define that timeline.</div>
-    </section>
-
-    <section id="time">
-      <h2>Time triggers</h2>
-      <h3>After the beginning</h3><pre><code>after start 8s:
+<p>One process can therefore accompany another process.</p>
+<h2 id="while-musical-memory-exists">While musical memory exists</h2>
+<pre class="text"><code>while harmony exists every 80ms:
+  play random note from harmony velocity 20..40 for 60ms</code></pre>
+<p>The repetition interval can itself be random:</p>
+<pre class="text"><code>while harmony exists every random 700ms..1.8s:
+  play random note from harmony octave +2 velocity 18..34 for 420ms</code></pre>
+<p>The process begins as soon as a memory named <code>harmony</code> has
+been created and remains available until that memory is cleared or the
+section changes.</p>
+<p>This is one of the central ideas of PianoRules: <strong>the performer
+can create material, and other rules can keep acting upon that material
+independently.</strong></p>
+<hr />
+<h1 id="time-triggers">4. Time triggers</h1>
+<h2 id="after-the-beginning-of-a-section">After the beginning of a
+section</h2>
+<pre class="text"><code>after start 8s:
   play [C3 G3 C4] velocity 48 for 700ms</code></pre>
-      <h3>Regular pulse</h3><pre><code>every 3s:
+<p>Every section has its own clock. Entering a new section resets
+<code>start</code>.</p>
+<h2 id="regular-autonomous-events">Regular autonomous events</h2>
+<pre class="text"><code>every 3s:
   play C5 velocity 40 for 100ms</code></pre>
-      <h3>Random autonomous timing</h3><pre><code>every random 2s..5s:
+<h2 id="random-autonomous-events">Random autonomous events</h2>
+<pre class="text"><code>every random 2s..5s:
   play random [C4 D4 E4 G4 A4] velocity 25..55 for 140ms</code></pre>
-      <p>These rules let the instrument have temporal behaviour that is not directly controlled by the pianist.</p>
-    </section>
-
-
-    <section id="sections">
-      <h2>Sections and musical form</h2>
-      <p>A piece can contain several independent <strong>sections</strong>. Only one section is active at a time, and the first section in the file is active by default.</p>
-      <pre><code>section Opening:
-  when any note:
-    play +7 velocity input*0.5
-
+<p>A new interval is chosen after every event.</p>
+<hr />
+<h1 id="sections-and-musical-form">5. Sections and musical form</h1>
+<p>A piece can contain several independent behavioural worlds:</p>
+<pre class="text"><code>section Solo:
   when note C7:
-    go to section Echoes
+    go to section Tremolo
 
-section Echoes:
-  every random 2s..5s:
-    play random [C4 E4 G4 B4] velocity 25..50
+section Tremolo:
+  when chord played notes 3..6:
+    remember chord as harmony
+
+  while harmony exists every 70ms:
+    play random note from harmony velocity 20..40 for 50ms
 
   when note C1:
-    go to section Opening</code></pre>
-      <p>A section change can itself be the action produced by a note, chord, dynamic condition, timer, held-note process, or sequence.</p>
-      <div class="callout"><strong>Changing section is a reset:</strong> the old section's timers, repetitions, sequences and <code>while</code> processes are cancelled; PianoRules sends all-notes-off / all-sound-off, stops audio it started, resets the local section clock, and activates only the new section's code.</div>
-      <p>The active section is shown beside the editor title, and that section's code is visually emphasized in the code window. Notes that were already held before a section change do not automatically start a new held-note process in the new section.</p>
-      <h3>Indentation after <code>section</code> is optional</h3>
-      <p>The section header already establishes the structural level, so both styles are valid:</p>
-      <pre><code>section Opening:
-  when any note:
-    play +7</code></pre>
-      <pre><code>section Opening:
-when any note:
-  play +7</code></pre>
-      <p>Actions still need to be indented beneath the trigger or sequence they belong to.</p>
-      <h3>Click a section to rehearse it</h3>
-      <p>Click anywhere inside an inactive section's code in the editor to activate that section immediately. If the editor contains unapplied changes, PianoRules applies the current script first and then enters the clicked section.</p>
-      <h3>Open form rather than a fixed chain</h3>
-      <p>Sections do not have to follow one another sequentially. They can loop, branch, return, or be selected by the performer. This makes them useful for improvisational navigation, game-like forms, open scores, and pieces in which the piano itself helps determine the next formal state.</p>
-      <p>A file without any <code>section ...:</code> headings still works and is treated as one implicit section called <code>Main</code>.</p>
-    </section>
-
-    <section id="actions">
-      <h2>Actions</h2>
-      <table>
-        <tr><th>Idea</th><th>Syntax</th></tr>
-        <tr><td>Absolute note</td><td><code>play C5</code></td></tr>
-        <tr><td>Relative interval</td><td><code>play +7</code></td></tr>
-        <tr><td>Chord</td><td><code>play [C5 E5 G5]</code></td></tr>
-        <tr><td>Random pitch</td><td><code>play random [C4 D4 E4 G4 A4]</code></td></tr>
-        <tr><td>Copy input dynamics</td><td><code>velocity input</code></td></tr>
-        <tr><td>Scale dynamics</td><td><code>velocity input*0.6</code></td></tr>
-        <tr><td>Random dynamics</td><td><code>velocity 30..65</code></td></tr>
-        <tr><td>Delay</td><td><code>after 300ms</code></td></tr>
-        <tr><td>Duration</td><td><code>for 800ms</code></td></tr>
-        <tr><td>Repeat</td><td><code>repeat 8 every 250ms</code></td></tr>
-        <tr><td>Accelerate</td><td><code>accelerate 0.84</code></td></tr>
-        <tr><td>Decelerate</td><td><code>accelerate 1.18</code></td></tr>
-        <tr><td>Output channel</td><td><code>channel 2</code></td></tr>
-        <tr><td>Change section</td><td><code>go to section Echoes</code></td></tr>
-      </table>
-      <pre><code>when any note:
-  play +4 velocity input*0.7 repeat 9 every 420ms accelerate 0.84 for 90ms</code></pre>
-    </section>
-
-    <section id="sequences">
-      <h2>Named sequences</h2>
-      <p>Sequences are reusable musical objects: motives, responses, textures, cadences, interruptions, or algorithmic characters.</p>
-      <pre><code>sequence answer:
+    go to section Solo</code></pre>
+<p>Only one section runs at a time. The first section is active by
+default.</p>
+<p>Sections do <strong>not</strong> need to follow one another
+sequentially. A trigger can jump from A to C, C back to A, or create a
+branching form.</p>
+<p>When a section changes, PianoRules performs a hard musical reset:</p>
+<ul>
+<li>old timers and repetitions are cancelled;</li>
+<li>named sequences stop;</li>
+<li>loops stop;</li>
+<li><code>while</code> processes stop;</li>
+<li>generated notes receive an all-notes-off reset;</li>
+<li>PianoRules-started audio stops;</li>
+<li>musical memories such as <code>harmony</code>, <code>motif</code>,
+and <code>melody</code> are cleared;</li>
+<li>the new section receives a fresh clock.</li>
+</ul>
+<p>A file with no <code>section</code> headers still works as one
+implicit section called <code>Main</code>.</p>
+<hr />
+<h1 id="basic-note-actions">6. Basic note actions</h1>
+<h2 id="absolute-notes">Absolute notes</h2>
+<pre class="text"><code>play C5</code></pre>
+<h2 id="chords">Chords</h2>
+<pre class="text"><code>play [C4 E4 G4]</code></pre>
+<h2 id="relative-notes">Relative notes</h2>
+<pre class="text"><code>when any note:
+  play +4</code></pre>
+<p><code>+4</code> means four semitones above the triggering note.
+Negative values move downward.</p>
+<h2 id="velocity">Velocity</h2>
+<pre class="text"><code>play C5 velocity 60
+play +7 velocity input
+play +7 velocity input*0.5
+play C5 velocity 30..70</code></pre>
+<p>The last form chooses a random velocity inside the range.</p>
+<h2 id="delay-and-duration">Delay and duration</h2>
+<pre class="text"><code>play +12 after 300ms for 120ms</code></pre>
+<h2 id="repetition">Repetition</h2>
+<pre class="text"><code>play +4 repeat 8 every 300ms for 90ms</code></pre>
+<h2 id="acceleration-and-deceleration">Acceleration and
+deceleration</h2>
+<pre class="text"><code>play +4 repeat 9 every 420ms accelerate 0.84 for 90ms</code></pre>
+<p>Each following interval is multiplied by <code>0.84</code>, so the
+repetition accelerates. A value above <code>1</code> decelerates.</p>
+<h2 id="output-channel">Output channel</h2>
+<pre class="text"><code>play C5 channel 2</code></pre>
+<hr />
+<h1 id="musical-memory">7. Musical memory</h1>
+<p>Musical memory lets a performer create material that remains
+available to independent rules.</p>
+<h2 id="remember-a-chord">Remember a chord</h2>
+<pre class="text"><code>when chord played notes 3..6 within 170ms:
+  remember chord as harmony</code></pre>
+<p>A later chord replaces the memory if the same name is used again.</p>
+<p>Equivalent wording is available:</p>
+<pre class="text"><code>replace harmony with chord</code></pre>
+<h2 id="morph-from-one-harmony-to-the-next">Morph from one harmony to
+the next</h2>
+<pre class="text"><code>when chord played notes 3..6 within 170ms:
+  morph harmony to chord over 2s</code></pre>
+<p>Instead of abruptly replacing the pitch reservoir, PianoRules
+gradually changes the probability of choosing notes from the old chord
+toward the new chord.</p>
+<p>This is particularly useful for clouds and tremoli: the texture can
+remain continuous while its harmonic identity changes progressively.</p>
+<h2 id="clear-a-memory">Clear a memory</h2>
+<pre class="text"><code>clear harmony</code></pre>
+<p>Any <code>while harmony exists</code> process then stops.</p>
+<h2 id="remember-the-last-notes">Remember the last notes</h2>
+<pre class="text"><code>when note C7:
+  remember last 8 notes as motif</code></pre>
+<p>This captures the timing, velocity, pitch and approximate duration of
+the most recent eight performed notes.</p>
+<h2 id="remember-a-phrase">Remember a phrase</h2>
+<pre class="text"><code>when phrase ends after 900ms:
+  remember phrase as melody</code></pre>
+<p>The phrase can then be replayed, transformed or looped.</p>
+<hr />
+<h1 id="chord-derived-textures">8. Chord-derived textures</h1>
+<h2 id="random-chord-tone">Random chord tone</h2>
+<pre class="text"><code>while harmony exists every 70ms:
+  play random note from harmony velocity 15..35 for 50ms</code></pre>
+<p>The pianist determines pitch content; the machine determines which
+chord tone occurs next.</p>
+<h2 id="random-register-displacement">Random register displacement</h2>
+<pre class="text"><code>while harmony exists every 70ms:
+  play random note from harmony octave random -2..+2 velocity 15..35 for 50ms</code></pre>
+<p>The stored chord is treated as a pitch reservoir that can be
+projected into different octaves.</p>
+<h2 id="fixed-register-displacement">Fixed register displacement</h2>
+<pre class="text"><code>play random note from harmony octave -2</code></pre>
+<h2 id="restrict-the-register">Restrict the register</h2>
+<pre class="text"><code>while harmony exists every 120ms:
+  play random note from harmony range C5..C7 velocity 18..36 for 90ms</code></pre>
+<p>PianoRules preserves the pitch class of the selected chord tone and
+places it inside the requested range when possible.</p>
+<h2 id="patterned-ostinato-from-a-chord">Patterned ostinato from a
+chord</h2>
+<pre class="text"><code>while harmony exists every 190ms:
+  play next note from harmony pattern [1 3 2 4 3 2] octave -1 velocity 38 for 100ms</code></pre>
+<p>The numbers refer to the stored chord tones in ascending order. For a
+four-note harmony, <code>1 3 2 4</code> means first chord tone, third,
+second, fourth.</p>
+<p>If a pattern asks for an index larger than the number of chord tones,
+PianoRules wraps around the available material rather than failing.</p>
+<p>This makes one rule reusable with triads, seventh chords, clusters,
+and changing voicings.</p>
+<hr />
+<h1 id="captured-material-replay-retrograde-and-looping">9. Captured
+material: replay, retrograde and looping</h1>
+<h2 id="replay-remembered-material">Replay remembered material</h2>
+<pre class="text"><code>play remembered melody</code></pre>
+<p>The captured relative timing and note durations are retained.</p>
+<h2 id="transposition">Transposition</h2>
+<pre class="text"><code>play remembered melody transpose +12</code></pre>
+<h2 id="backwards">Backwards</h2>
+<pre class="text"><code>play remembered melody backwards</code></pre>
+<p>This produces a temporal retrograde of the captured material.</p>
+<h2 id="combine-transformations">Combine transformations</h2>
+<pre class="text"><code>play remembered melody backwards transpose +12 velocity *0.45 timing *1.15</code></pre>
+<p>This means:</p>
+<ul>
+<li>reverse the captured phrase;</li>
+<li>transpose it one octave upward;</li>
+<li>scale its velocities to 45%;</li>
+<li>stretch its timing by 15%.</li>
+</ul>
+<h2 id="random-timing-scale">Random timing scale</h2>
+<pre class="text"><code>play remembered melody timing * random 0.8..1.2</code></pre>
+<p>A new timing factor is chosen for that playback.</p>
+<h2 id="loop-captured-material">Loop captured material</h2>
+<pre class="text"><code>loop remembered phrase1 every 4s</code></pre>
+<p>Or:</p>
+<pre class="text"><code>loop remembered phrase1 every 4s velocity *0.55 timing * random 0.9..1.1</code></pre>
+<p>The loop continues until the rules are restarted, Panic is pressed,
+or the section changes.</p>
+<p>If <code>every ...</code> is omitted, PianoRules begins the next
+repetition after the remembered material has finished.</p>
+<hr />
+<h1 id="named-sequences">10. Named sequences</h1>
+<p>Sequences are reusable blocks of actions:</p>
+<pre class="text"><code>sequence answer:
   play +12 velocity input*0.8 for 130ms
   wait 160ms
   play +7 velocity input*0.7 for 130ms
@@ -185,152 +316,272 @@ when any note:
 
 when note D4:
   play sequence answer</code></pre>
-      <p><code>wait</code> advances the local timeline. Without a wait, several actions can begin from the same point in time.</p>
-    </section>
-
-    <section id="files">
-      <h2>MIDI and sound files</h2>
-      <pre><code>when note F4:
-  play midi "gesture.mid"
+<p><code>wait</code> advances the internal sequence timeline.</p>
+<p>Sequences are useful when a behaviour is composed in advance but
+should remain triggerable from several places.</p>
+<hr />
+<h1 id="midi-and-audio-files">11. MIDI and audio files</h1>
+<pre class="text"><code>when note F4:
+  play midi &quot;gesture.mid&quot;
 
 when note G4:
-  play sound "resonance.wav"</code></pre>
+  play sound &quot;resonance.wav&quot;</code></pre>
+<p>Files can be dropped onto PianoRules and stored locally in the
+browser.</p>
+<p>A ruleset can also declare a shared remote asset folder:</p>
+<pre class="text"><code>assets from &quot;./assets/&quot;</code></pre>
+<p>If a shared ruleset is located at:</p>
+<pre class="text"><code>Library/Prepared/Prepared.rules</code></pre>
+<p>then <code>./assets/</code> refers naturally to:</p>
+<pre class="text"><code>Library/Prepared/assets/</code></pre>
+<p>You can also declare one asset explicitly:</p>
+<pre class="text"><code>asset &quot;special.wav&quot; from &quot;./other-folder/special.wav&quot;</code></pre>
+<p>Shared Library rulesets can be opened with a URL such as:</p>
+<pre class="text"><code>?ruleset=Prepared</code></pre>
+<p>PianoRules then looks for:</p>
+<pre class="text"><code>Library/Prepared/Prepared.rules</code></pre>
+<p>and preloads the assets referenced by that ruleset before
+starting.</p>
+<hr />
+<h1 id="browser-preview-piano">12. Browser preview piano</h1>
+<p>The <strong>MIDI → Output device</strong> menu includes:</p>
+<pre class="text"><code>Browser preview piano (built-in)</code></pre>
+<p>This is a lightweight Web Audio instrument built into PianoRules. It
+is not intended to replace a high-quality piano library or a Disklavier;
+it exists so that a casual user can hear the generated notes
+immediately.</p>
+<p>This option is useful for:</p>
+<ul>
+<li>testing a ruleset on a laptop;</li>
+<li>teaching without configuring a DAW;</li>
+<li>checking generative behaviour before connecting a Disklavier;</li>
+<li>verifying that a trigger produces the expected pitches and
+rhythms.</li>
+</ul>
+<p>The operating system’s default General MIDI synthesizer is not
+consistently exposed to web pages as a MIDI destination, so PianoRules
+provides this browser-native preview instead.</p>
+<hr />
+<h1 id="using-pianorules-with-a-disklavier">13. Using PianoRules with a
+Disklavier</h1>
+<p>There are two common connection arrangements.</p>
+<h2 id="usb-midi">USB MIDI</h2>
+<p>If the Disklavier exposes MIDI over USB, connect it to the computer
+and open PianoRules.</p>
+<p>In <strong>MIDI setup</strong>:</p>
+<ul>
+<li><strong>Input device:</strong> choose the Disklavier/Yamaha MIDI
+input;</li>
+<li><strong>Output device:</strong> choose the corresponding
+Disklavier/Yamaha MIDI output;</li>
+<li><strong>Input channel:</strong> usually <code>All channels</code> is
+easiest while testing;</li>
+<li><strong>Output channel:</strong> begin with channel <code>1</code>
+unless the instrument is configured differently.</li>
+</ul>
+<p>The conceptual signal path is:</p>
+<pre class="text"><code>pianist → Disklavier MIDI OUT → PianoRules → Disklavier MIDI IN → physical keys</code></pre>
+<h2 id="midi-din-through-an-interface">MIDI DIN through an
+interface</h2>
+<p>With a conventional MIDI interface:</p>
+<pre class="text"><code>Disklavier MIDI OUT → interface MIDI IN
+interface MIDI OUT → Disklavier MIDI IN</code></pre>
+<p>Then choose the interface’s input and output ports in PianoRules.</p>
+<h2 id="feedback-protection">Feedback protection</h2>
+<p>When the same player piano both sends the performer’s notes and
+receives generated notes, the mechanically reproduced notes may
+sometimes return to the computer as MIDI input. Leave <strong>Ignore
+likely MIDI feedback from generated notes</strong> enabled unless you
+deliberately want recursive behaviour.</p>
+<p>The exact MIDI/Local Control settings differ between Disklavier
+generations, so if the physical piano does not respond, confirm on the
+instrument that incoming MIDI note messages are enabled and that the
+selected MIDI channel matches PianoRules.</p>
+<p>Before using dense or very fast generative rules on a real player
+piano, begin at low density and moderate velocity. Mechanical
+instruments have physical repetition and dynamic limits that a software
+synthesizer does not.</p>
+<hr />
+<h1 id="using-pianorules-with-ableton-live-or-a-piano-library">14. Using
+PianoRules with Ableton Live or a piano library</h1>
+<p>PianoRules can send its generated MIDI into a DAW. This is useful for
+Pianoteq, Kontakt piano libraries, Ableton’s instruments, or any other
+MIDI-controlled software instrument.</p>
+<p>The required ingredient is a <strong>virtual MIDI port</strong>
+between the browser and Ableton.</p>
+<h2 id="macos-iac-driver">macOS: IAC Driver</h2>
+<ol type="1">
+<li>Open <strong>Audio MIDI Setup</strong>.</li>
+<li>Open <strong>MIDI Studio</strong>.</li>
+<li>Open <strong>IAC Driver</strong>.</li>
+<li>Enable <strong>Device is online</strong> and create a bus, for
+example <code>PianoRules</code>.</li>
+<li>In PianoRules, choose that IAC bus as the <strong>Output
+device</strong>.</li>
+<li>In Ableton Live, enable <strong>Track</strong> input for the IAC
+port in MIDI preferences.</li>
+<li>Create a MIDI track.</li>
+<li>Set <strong>MIDI From</strong> to the PianoRules/IAC port.</li>
+<li>Set monitoring to <strong>In</strong> or arm the track.</li>
+<li>Load the piano instrument or library you want to hear.</li>
+</ol>
+<p>The route becomes:</p>
+<pre class="text"><code>MIDI keyboard → PianoRules → IAC PianoRules → Ableton MIDI track → piano instrument</code></pre>
+<h2 id="windows">Windows</h2>
+<p>Windows does not include an IAC-style virtual cable by default. A
+virtual MIDI-port utility such as <strong>loopMIDI</strong> can provide
+the same connection:</p>
+<pre class="text"><code>PianoRules → virtual MIDI port → Ableton → piano library</code></pre>
+<p>Create a virtual port, choose it as PianoRules’ output, then choose
+the same port as the MIDI input for the Ableton track.</p>
+<h2 id="original-piano-plus-generated-piano-library">Original piano plus
+generated piano library</h2>
+<p>You can keep playing your physical keyboard locally while only the
+generated PianoRules output goes into Ableton. In that setup, your
+acoustic/electronic piano is the foreground and the virtual piano
+library becomes the responsive machine layer.</p>
+<p>If you instead want both your own playing and the generated layer to
+sound from the same plugin, route the keyboard into Ableton as well,
+taking care to avoid MIDI loops.</p>
+<hr />
+<h1 id="shared-pianorules-file-library">15. Shared PianoRules file
+library</h1>
+<p>The <strong>Files</strong> button opens the shared Google Drive
+folder created for exchanging useful material.</p>
+<p>It can contain:</p>
+<ul>
+<li><code>.rules</code> studies;</li>
+<li>MIDI gestures;</li>
+<li>audio samples;</li>
+<li>prepared-piano samples;</li>
+<li>example materials for classes and workshops.</li>
+</ul>
+<p>A useful workflow is:</p>
+<ol type="1">
+<li>download a shared file;</li>
+<li>drop it into PianoRules if it is a local MIDI/audio asset;</li>
+<li>refer to its filename in the rules;</li>
+<li>alter the musical behaviour rather than rebuilding the material from
+scratch.</li>
+</ol>
+<p>The GitHub <code>Library/</code> mechanism is particularly useful for
+rulesets that should open directly from a public URL, while the Drive
+folder remains convenient as a communal drop/share area.</p>
+<hr />
+<h1 id="musical-studies-to-try">16. Musical studies to try</h1>
+<p>The downloadable project also includes
+<code>examples/Harmonic-Machines-study.rules</code>, an original
+multi-section study that combines the techniques below into one playable
+form.</p>
+<h2 id="harmonic-cloud">Harmonic cloud</h2>
+<pre class="text"><code>when chord played notes 3..6 within 170ms:
+  remember chord as harmony
 
-      <h3>Local assets</h3>
-      <p>Drag files onto the asset area at the bottom of PianoRules. They are stored locally in that browser, so you can use the filename in your rules on later visits.</p>
+while harmony exists every 65ms:
+  play random note from harmony octave random -2..+2 velocity 12..32 for 45ms</code></pre>
+<p>The performer determines harmony; the machine creates a tremulous
+orchestration of it.</p>
+<h2 id="low-ostinato-high-cloud">Low ostinato + high cloud</h2>
+<pre class="text"><code>when chord played notes 3..6 within 170ms:
+  remember chord as harmony
 
-      <h3>Remote asset folder</h3>
-      <p>Declare a global folder near the beginning of a rules file:</p>
-      <pre><code>assets from "./assets/"</code></pre>
-      <p>Relative filenames used by <code>play midi</code> and <code>play sound</code> are resolved against that folder. An absolute web folder is also valid:</p>
-      <pre><code>assets from "https://example.org/my-piece-assets/"</code></pre>
-      <div class="callout"><strong>Preloading:</strong> whenever you press <strong>Run rules</strong> or <strong>Apply changes</strong>, PianoRules scans the complete piece and downloads every referenced remote asset before starting the engine. If an asset cannot be prepared, the rules remain stopped and the problem is shown in the diagnostics.</div>
+while harmony exists every 220ms:
+  play next note from harmony pattern [1 3 2 4 3 2] range C1..C3 velocity 38 for 120ms
 
-      <h3>One-off remote files</h3>
-      <pre><code>asset "special.wav" from "https://example.org/files/special.wav"
+while harmony exists every 95ms:
+  play random note from harmony range C5..C7 velocity 15..30 for 60ms</code></pre>
+<p>One harmonic gesture becomes two independent machine layers.</p>
+<h2 id="continuous-harmonic-morph">Continuous harmonic morph</h2>
+<pre class="text"><code>when chord played notes 3..6 within 170ms:
+  morph harmony to chord over 2.5s
 
-when note A4:
-  play sound "special.wav"</code></pre>
-      <p>This keeps the musical action readable even when one file lives somewhere else.</p>
+while harmony exists every 70ms:
+  play random note from harmony octave random -2..+2 velocity 14..34 for 50ms</code></pre>
+<p>The texture does not restart when harmony changes; its pitch
+reservoir gradually changes underneath it.</p>
+<h2 id="phrase-shadow">Phrase shadow</h2>
+<pre class="text"><code>when phrase ends after 800ms:
+  remember phrase as shadow
+  play remembered shadow backwards transpose +12 velocity *0.4 timing *1.3</code></pre>
+<h2 id="memory-loop">Memory loop</h2>
+<pre class="text"><code>when phrase ends after 1s:
+  remember phrase as loop1
+  loop remembered loop1 every 5s velocity *0.45 timing * random 0.85..1.15</code></pre>
+<h2 id="machine-controlled-formal-branching">Machine-controlled formal
+branching</h2>
+<pre class="text"><code>section Cloud:
+  when note C7:
+    go to section Canon
 
-      <h3>Recommended GitHub Pages layout</h3>
-      <pre><code>index.html
-app.js
-dsl.js
-...
-assets/
-  gesture.mid
-  resonance.wav
-performance.rules</code></pre>
-      <p>Then use <code>assets from "./assets/"</code>. Same-origin static assets are the simplest and most dependable performance setup.</p>
-
-      <div class="callout"><strong>Shared library:</strong> <a target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing">open the communal Google Drive folder</a>, download an interesting asset, then either drag it into PianoRules or copy it into your repository's <code>assets/</code> folder. A Google Drive folder is useful as a library/distribution space, but not as a raw filename-addressable runtime folder; Drive download endpoints are not reliably fetchable from browser JavaScript because of cross-origin restrictions.</div>
-    </section>
-
-
-    <section id="sharing">
-      <h2>Share a piece with one URL</h2>
-      <p>A complete work can live in the PianoRules Library, in its own GitHub repository, or as a public <code>.rules</code> file elsewhere. The <code>ruleset</code> URL parameter tells PianoRules which piece to open.</p>
-
-      <h3>Built-in Library</h3>
-      <pre><code>Library/
-  Cage/
-    Cage.rules
-    assets/
-      sound.wav
-      gesture.mid</code></pre>
-      <pre><code>https://YOUR-PAGES-URL/?ruleset=Cage</code></pre>
-      <p>The short name resolves to <code>Library/Cage/Cage.rules</code>. Without an explicit <code>assets from ...</code> declaration, <code>Library/Cage/assets/</code> is used automatically.</p>
-
-      <h3>Another GitHub repository</h3>
-      <pre><code>Rule-Gamelan/
-  Gamelan.rules
-  assets/
-    gong.wav
-    interlock.mid</code></pre>
-      <pre><code>?ruleset=https%3A%2F%2Fgithub.com%2FAdrianArtacho%2FRule-Gamelan</code></pre>
-      <p>PianoRules interprets <code>Rule-Gamelan</code> as the piece <code>Gamelan</code> and looks for <code>Gamelan.rules</code> in <code>main</code>, then <code>master</code>. A repository named simply <code>Gamelan</code> follows the same convention. Exact GitHub <code>blob/.../*.rules</code> links are accepted too.</p>
-
-      <h3>Direct file elsewhere</h3>
-      <pre><code>?ruleset=https%3A%2F%2Fexample.org%2Fpieces%2FClouds%2FClouds.rules</code></pre>
-      <p>Other hosts should provide a direct public <code>.rules</code> URL and permit browser/CORS access. Relative asset declarations are resolved from the score's own directory.</p>
-
-      <div class="callout"><strong>Self-contained works:</strong> when a score is loaded through <code>ruleset</code> and it has no <code>assets from ...</code> declaration, PianoRules automatically looks in an <code>assets/</code> folder beside the <code>.rules</code> file. The complete piece can therefore travel as one repository or folder.</div>
-      <p>The remote repository supplies only PianoRules text and media. It cannot inject JavaScript into the application; the loaded text still passes through the normal PianoRules parser before it can run.</p>
-    </section>
-
-    <section id="explore">
-      <h2>Things to explore</h2>
-      <h3>A delayed shadow</h3><pre><code>when any note:
-  play +12 velocity input*0.5 after 400ms</code></pre>
-      <h3>A held-key machine</h3><pre><code>while any note down every 160ms:
-  play +7 velocity input*0.4 for 70ms</code></pre>
-      <h3>Dynamic bifurcation</h3><pre><code>when any note velocity 1..60:
-  play +12 velocity 25 after 500ms
-
-when any note velocity 90..127:
-  play -12 velocity input*0.8 repeat 5 every 120ms</code></pre>
-      <h3>A harmonic password</h3><pre><code>when chord [C4 E4 G4] within 160ms:
-  play sequence answer</code></pre>
-      <h3>An autonomous partner</h3><pre><code>every random 3s..9s:
-  play random [C3 D3 F3 G3 A3] velocity 20..45 for 180ms</code></pre>
-      <p>The richest use of PianoRules is often not “automatic accompaniment” but <strong>musical causality</strong>: a note casts a shadow, a chord opens a process, a held key sustains a machine, dynamics switch behaviours, and one process awakens another.</p>
-    </section>
-
-    <section id="reference">
-      <h2>Compact grammar reference</h2>
-      <h3>Global asset declarations</h3>
-      <pre><code>assets from "./assets/"
-assets from "https://example.org/my-piece-assets/"
-asset "special.wav" from "https://example.org/files/special.wav"</code></pre>
-      <h3>Triggers</h3>
-      <pre><code>when any note:
-when any note velocity 40..100:
+section Canon:
+  when note C1:
+    go to section Cloud</code></pre>
+<p>Replace the navigation notes with chords, dynamic thresholds, timed
+events, or other triggers to make the form itself performative.</p>
+<hr />
+<h1 id="compact-grammar-reference">17. Compact grammar reference</h1>
+<h2 id="triggers">Triggers</h2>
+<pre class="text"><code>when any note:
+when any note velocity 80..127:
 when note C4:
 when note C4 velocity 80..127:
 when chord [C4 E4 G4] within 180ms:
-
-after start 8s:
-every 3s:
-every random 2s..5s:
+when chord played:
+when chord played notes 3..6 within 170ms:
+when phrase ends:
+when phrase ends after 900ms:
 
 while note C4 down:
 while note C4 down every 180ms:
-while note C4 down velocity 80..127 every 180ms:
-while any note down:
-while any note down velocity 80..127 every 120ms:
-while sequence answer playing:
-while sequence answer playing every 220ms:</code></pre>
-      <h3>Actions</h3>
-      <pre><code>play C5
+while any note down every 120ms:
+while sequence answer playing every 220ms:
+while harmony exists every 80ms:
+
+after start 8s:
+every 3s:
+every random 2s..5s:</code></pre>
+<h2 id="memory-actions">Memory actions</h2>
+<pre class="text"><code>remember chord as harmony
+replace harmony with chord
+morph harmony to chord over 2s
+clear harmony
+remember last 8 notes as motif
+remember phrase as melody</code></pre>
+<h2 id="note-actions">Note actions</h2>
+<pre class="text"><code>play C5
+play [C4 E4 G4]
 play +7
-play [C5 E5 G5]
-play random [C4 D4 E4 G4 A4]
-play +12 velocity input
-play +12 velocity input*0.7
-play C5 velocity 30..60
-play C5 after 300ms
-play C5 for 500ms
-play C5 repeat 8 every 200ms
-play +4 repeat 10 every 400ms accelerate 0.84
-play C5 channel 2
-play sequence answer
+play random [C4 D4 E4]
+play C5 velocity 60
+play +7 velocity input*0.5
+play C5 after 300ms for 120ms
+play +4 repeat 8 every 300ms accelerate 0.85</code></pre>
+<h2 id="actions-from-memory">Actions from memory</h2>
+<pre class="text"><code>play random note from harmony
+play random note from harmony octave random -2..+2
+play random note from harmony range C5..C7
+play next note from harmony pattern [1 3 2 4]
+
+play remembered melody
+play remembered melody backwards
+play remembered melody transpose +12
+play remembered melody backwards transpose +12 velocity *0.5 timing *1.2
+loop remembered melody every 4s</code></pre>
+<h2 id="other-actions">Other actions</h2>
+<pre class="text"><code>play sequence answer
+play midi &quot;gesture.mid&quot;
+play sound &quot;resonance.wav&quot;
 go to section Echoes
-play midi "gesture.mid"
-play sound "resonance.wav"
-wait 250ms
+wait 300ms
 stop all</code></pre>
-    </section>
-
-
-    <section id="credits">
-      <h2>Credits</h2>
-      <p><strong>PianoRules</strong> was created by <strong>Adrián Artacho</strong>, composer and educator at the <a href="https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html" target="_blank" rel="noopener">Music and Arts University of the City of Vienna (MUK)</a>.</p>
-      <p>The project is conceived as an open environment for performer–algorithm interaction, experimentation, teaching, and shared musical materials.</p>
-    </section>
-
-    <footer>The aim is not to make the performer write conventional software. It is to make musical relationships explicit, editable and playable.</footer>
-  </article>
-</div>
+<hr />
+<h1 id="credits">Credits</h1>
+<p><strong>PianoRules</strong> was conceived and developed by <a
+href="https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html">Adrián
+Artacho</a>, composer, researcher and educator at the <strong>Music and
+Arts University of the City of Vienna (MUK)</strong>.</p>
+<p>The project explores browser-based, performer-readable rules for
+interactive piano performance, teaching, algorithmic composition and
+human–machine improvisation.</p>
 </body>
 </html>

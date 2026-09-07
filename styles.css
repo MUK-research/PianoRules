@@ -107,5 +107,7 @@ dialog::backdrop { background:#000a; }
 .footer-credit a:hover { color:var(--accent); }
 @media (max-width:1100px){ .footer-credit{display:none;} }
 
-/* v6 — shareable ruleset loader */
-.ruleset-badge { font-size:.72rem; padding:3px 7px; border-radius:999px; border:1px solid #44515d; color:#c8d2dc; background:#151a1f; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* v5 — musical memory + shared ruleset badge */
+.ruleset-badge { font-size:.68rem; color:#d7e4ef; border:1px solid #3b4651; background:#171d23; border-radius:999px; padding:3px 7px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.memory-status { margin:0 13px 8px; padding:7px 9px; min-height:31px; border:1px solid #252d35; border-radius:6px; background:#11151a; color:#7f8b97; font-size:.67rem; line-height:1.35; text-align:center; overflow:auto; max-height:64px; }
+.memory-status:not(:empty) { scrollbar-width:thin; }
