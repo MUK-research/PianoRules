@@ -1,0 +1,11 @@
+# Prepared Example
+assets from "./assets/"
+
+when note C3:
+ play sound "C3.mp3"
+
+when note D3:
+ play sound "D3.mp3"
+
+when note E3:
+ play sound "E3.mp3"
