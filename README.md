@@ -15,7 +15,7 @@ If the edited script contains a syntax error, PianoRules stops the previous rule
 - Shows live input and output monitors.
 - Lets performers edit a deliberately human-readable musical rule language in the browser.
 - Remembers the rule script, MIDI device selection, channels, fullscreen preference and feedback-guard settings in `localStorage`.
-- Supports note, velocity, chord, elapsed-time, periodic and randomized triggers.
+- Supports note, velocity, chord, elapsed-time, periodic, randomized, and state-based `while` triggers.
 - Supports absolute notes, relative intervals, chords, repetitions, accelerating/decelerating repetitions, named sequences, MIDI-file playback and audio-file playback.
 - Dragging `.mid`, `.wav`, `.mp3`, etc. onto the bottom bar stores them in IndexedDB for later visits on the same browser/device.
 - Includes MIDI-feedback protection for setups where generated Disklavier notes return through MIDI input.
@@ -35,6 +35,17 @@ GitHub Pages is HTTPS, which is required by Web MIDI.
 Press **START PERFORMANCE**. The click is intentionally used to request MIDI permission and enter fullscreen, because browsers require user interaction for these privileged actions.
 
 Open **MIDI** to choose input/output ports and channels. If more than one MIDI output exists, PianoRules deliberately starts with no output selected; choose the Disklavier/Clavinova explicitly. Settings are remembered for future visits. PianoRules first remembers the browser's MIDI port ID and also saves manufacturer/name as a fallback if an ID changes.
+
+
+## Documentation and shared files
+
+The performer-facing musical grammar is documented in [`docs/README.md`](docs/README.md). When the repository is deployed from its root on GitHub Pages, the formatted documentation is available at `/docs/` and is linked from the PianoRules toolbar.
+
+The shared community file library is:
+
+<https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing>
+
+The intended workflow is to download an asset from the shared folder, drag it into PianoRules, and reference it by filename in a rule.
 
 ## Rule language
 
@@ -113,6 +124,42 @@ when note D4:
 ```
 
 Relative notes inside a sequence use the original triggering note as their reference.
+
+
+### While a key is held
+
+```text
+while note C4 down every 180ms:
+  play +7 velocity input*0.6 for 80ms
+```
+
+The rule activates when C4 goes down. With `every 180ms`, the body is repeated while C4 remains held; release the key and future actions belonging to that while-state stop.
+
+You can also use any held note and a dynamic condition:
+
+```text
+while any note down velocity 80..127 every 120ms:
+  play +12 velocity input*0.45 for 60ms
+```
+
+### While a sequence is playing
+
+```text
+sequence answer:
+  play +12 for 130ms
+  wait 160ms
+  play +7 for 130ms
+  wait 160ms
+  play +3 for 180ms
+
+when note D4:
+  play sequence answer
+
+while sequence answer playing every 220ms:
+  play -12 velocity 35 for 80ms
+```
+
+The sequence-playing state is derived from PianoRules waits, note durations, repetitions, and nested sequences.
 
 ### MIDI and audio assets
 

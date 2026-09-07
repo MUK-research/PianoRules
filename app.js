@@ -9,8 +9,9 @@ const STORAGE='pianorules.v1';
 
 const state = {
   midi:null, inputSelection:'all', outputSelection:'', inputChannel:'all', outputChannel:1,
-  running:false, rules:[], sequences:new Map(), held:new Set(), noteHistory:[], timers:new Set(),
+  running:false, rules:[], sequences:new Map(), held:new Set(), heldInputs:new Map(), noteHistory:[], timers:new Set(),
   startedAt:0, likelyEchoes:new Map(), assets:new Map(), chordFire:new Map(),
+  sequencePlaying:new Map(), whileStates:new Map(), sequenceTokens:0,
   engineGeneration:0, appliedSource:''
 };
 
@@ -123,11 +124,19 @@ function log(el,text){
   row.innerHTML=`<span class="time">${timeLabel()}</span><span></span>`; row.lastElementChild.textContent=text;
   el.prepend(row); while(el.children.length>120)el.lastElementChild.remove();
 }
-function setHeld(){ heldNotesEl.innerHTML=[...state.held].sort((a,b)=>a-b).map(n=>`<span class="chip">${midiToNoteName(n)}</span>`).join(''); }
+function setHeld(){
+  const notes=[...new Set([...state.heldInputs.values()].map(x=>x.note))].sort((a,b)=>a-b);
+  state.held=new Set(notes);
+  heldNotesEl.innerHTML=notes.map(n=>`<span class="chip">${midiToNoteName(n)}</span>`).join('');
+}
 
-function isLikelyEcho(note,channel){
+function markLikelyEcho(note,channel,phase='on'){
+  const key=`${channel}:${note}`, rec=state.likelyEchoes.get(key)||{};
+  rec[phase]=performance.now(); state.likelyEchoes.set(key,rec);
+}
+function isLikelyEcho(note,channel,phase='on'){
   if(!$('#echoGuard').checked)return false;
-  const key=`${channel}:${note}`, t=state.likelyEchoes.get(key); if(t==null)return false;
+  const rec=state.likelyEchoes.get(`${channel}:${note}`), t=rec?.[phase]; if(t==null)return false;
   return performance.now()-t <= Number($('#echoGuardMs').value||100);
 }
 
@@ -135,15 +144,20 @@ function handleMidi(event,port){
   const [status,d1,d2=0]=event.data, type=status&0xf0, channel=(status&0x0f)+1;
   if(state.inputChannel!=='all' && Number(state.inputChannel)!==channel)return;
   if(type===0x90 && d2>0){
-    const echo=isLikelyEcho(d1,channel);
+    const echo=isLikelyEcho(d1,channel,'on');
     $('#inputHero').textContent=midiToNoteName(d1); $('#inputVelocity').textContent=`velocity ${d2} · ch ${channel}`;
-    state.held.add(d1); setHeld();
     log(inputLog,`${midiToNoteName(d1)}  vel ${d2}  ch ${channel}${echo?'  [echo ignored]':''}`);
     if(echo)return;
-    const now=performance.now(); state.noteHistory.push({note:d1,velocity:d2,channel,time:now}); state.noteHistory=state.noteHistory.filter(x=>now-x.time<1500);
-    if(state.running) processNote(d1,d2,channel,now);
+    const now=performance.now(), ctx={note:d1,velocity:d2,channel,time:now};
+    state.heldInputs.set(`${channel}:${d1}`,ctx); setHeld();
+    state.noteHistory.push(ctx); state.noteHistory=state.noteHistory.filter(x=>now-x.time<1500);
+    if(state.running){ processNote(d1,d2,channel,now); refreshWhileRules(ctx); }
   } else if(type===0x80 || (type===0x90&&d2===0)){
-    state.held.delete(d1); setHeld(); log(inputLog,`${midiToNoteName(d1)} off  ch ${channel}`);
+    const echo=isLikelyEcho(d1,channel,'off');
+    log(inputLog,`${midiToNoteName(d1)} off  ch ${channel}${echo?'  [echo ignored]':''}`);
+    if(echo)return;
+    state.heldInputs.delete(`${channel}:${d1}`); setHeld();
+    if(state.running)refreshWhileRules();
   } else if(type===0xb0) log(inputLog,`CC ${d1} = ${d2}  ch ${channel}`);
   else log(inputLog,`0x${status.toString(16)} ${d1} ${d2}`);
 }
@@ -163,11 +177,70 @@ function processNote(note,velocity,channel,now){
   }
 }
 
+function whileConditionContext(trigger,preferredCtx=null){
+  if(trigger.kind==='whileNote'){
+    const candidates=[...state.heldInputs.values()].filter(x=>(trigger.any||x.note===trigger.note) && velocityMatches(trigger.velocity,x.velocity));
+    if(!candidates.length)return null;
+    if(preferredCtx && candidates.some(x=>x.note===preferredCtx.note&&x.channel===preferredCtx.channel))return preferredCtx;
+    return candidates[candidates.length-1];
+  }
+  if(trigger.kind==='whileSequence'){
+    const active=state.sequencePlaying.get(trigger.name);
+    return active?.count>0 ? active.ctx : null;
+  }
+  return null;
+}
+function whileGuard(ruleId,epoch){
+  return ()=>{const ws=state.whileStates.get(ruleId);return !!ws?.active && ws.epoch===epoch;};
+}
+function refreshWhileRules(preferredCtx=null){
+  if(!state.running)return;
+  const generation=state.engineGeneration;
+  for(const rule of state.rules){
+    const tr=rule.trigger;
+    if(tr.kind!=='whileNote'&&tr.kind!=='whileSequence')continue;
+    const ctx=whileConditionContext(tr,preferredCtx);
+    let ws=state.whileStates.get(rule.id);
+    if(!ws){ws={active:false,epoch:0,ctx:null};state.whileStates.set(rule.id,ws);}
+    if(ctx && !ws.active){
+      ws.active=true; ws.epoch++; ws.ctx=ctx;
+      const epoch=ws.epoch, guard=whileGuard(rule.id,epoch);
+      fireRule(rule,ctx,generation,guard);
+      if(tr.every)recurringWhile(rule,tr.every,generation,epoch);
+    } else if(ctx && ws.active){
+      ws.ctx=ctx;
+    } else if(!ctx && ws.active){
+      ws.active=false; ws.epoch++; ws.ctx=null;
+    }
+  }
+}
+function recurringWhile(rule,interval,generation,epoch){
+  const guard=whileGuard(rule.id,epoch);
+  schedule(()=>{
+    const ws=state.whileStates.get(rule.id); if(!ws?.ctx)return;
+    fireRule(rule,ws.ctx,generation,guard);
+    recurringWhile(rule,interval,generation,epoch);
+  },interval,generation,guard);
+}
+
+function beginSequenceState(name,ctx,generation){
+  if(!state.running||state.engineGeneration!==generation)return;
+  const current=state.sequencePlaying.get(name)||{count:0,ctx}; current.count++; current.ctx=ctx;
+  state.sequencePlaying.set(name,current); refreshWhileRules(ctx);
+}
+function endSequenceState(name,generation){
+  if(state.engineGeneration!==generation)return;
+  const current=state.sequencePlaying.get(name); if(!current)return;
+  current.count=Math.max(0,current.count-1);
+  if(current.count===0)state.sequencePlaying.delete(name); else state.sequencePlaying.set(name,current);
+  refreshWhileRules();
+}
+
 function addTimer(id){state.timers.add(id);return id;}
-function schedule(fn,ms,generation=state.engineGeneration){
+function schedule(fn,ms,generation=state.engineGeneration,guard=null){
   const id=setTimeout(()=>{
     state.timers.delete(id);
-    if(state.running && state.engineGeneration===generation) fn();
+    if(state.running && state.engineGeneration===generation && (!guard||guard())) fn();
   },Math.max(0,ms));
   return addTimer(id);
 }
@@ -200,6 +273,8 @@ function startEngine(){
   state.startedAt=performance.now();
   state.noteHistory=[];
   state.chordFire.clear();
+  state.sequencePlaying.clear();
+  state.whileStates.clear();
   $('#engineStatus').textContent='running';
   $('#engineStatus').className='status running';
   $('#runButton').textContent='Restart rules';
@@ -213,6 +288,7 @@ function startEngine(){
     if(tr.kind==='every') recurring(rule,tr.interval,tr.interval,generation);
     if(tr.kind==='everyRandom') recurringRandom(rule,tr.min,tr.max,generation);
   }
+  refreshWhileRules();
   return true;
 }
 function recurring(rule,first,interval,generation=state.engineGeneration){
@@ -229,13 +305,13 @@ function recurringRandom(rule,min,max,generation=state.engineGeneration){
   },delay,generation);
 }
 
-async function fireRule(rule,ctx,generation=state.engineGeneration){
-  if(!state.running || state.engineGeneration!==generation) return;
+async function fireRule(rule,ctx,generation=state.engineGeneration,guard=null){
+  if(!state.running || state.engineGeneration!==generation || (guard&&!guard())) return;
   ruleFired.textContent=`line ${rule.line}: ${describeTrigger(rule.trigger)}`;
   let cursor=0;
   for(const action of rule.actions){
     if(action.kind==='wait'){cursor+=action.duration;continue;}
-    executeAction(action,ctx,cursor,generation);
+    executeAction(action,ctx,cursor,generation,guard);
   }
 }
 function describeTrigger(t){
@@ -243,19 +319,47 @@ function describeTrigger(t){
   if(t.kind==='chord')return `chord ${t.notes.map(midiToNoteName).join(' ')}`;
   if(t.kind==='after')return `after start ${t.delay}ms`;
   if(t.kind==='every')return `every ${t.interval}ms`;
-  return t.kind==='everyRandom'?`random timer ${t.min}–${t.max}ms`:t.kind;
+  if(t.kind==='everyRandom')return `random timer ${t.min}–${t.max}ms`;
+  if(t.kind==='whileNote')return `while ${t.any?'any note':midiToNoteName(t.note)} is down${t.every?` · every ${t.every}ms`:''}`;
+  if(t.kind==='whileSequence')return `while sequence ${t.name} is playing${t.every?` · every ${t.every}ms`:''}`;
+  return t.kind;
 }
 
-function executeAction(action,ctx,baseDelay=0,generation=state.engineGeneration){
-  if(action.kind==='panic'){schedule(()=>panic(false),baseDelay,generation);return;}
+function noteActionDuration(action){
+  let interval=action.every||0, lastStart=action.after||0;
+  for(let i=1;i<action.repeat;i++){lastStart+=interval;interval*=action.accelerate||1;}
+  return lastStart+(action.duration||0);
+}
+function sequenceDuration(name,stack=[]){
+  if(stack.includes(name))return 0;
+  const actions=state.sequences.get(name); if(!actions)return 0;
+  let cursor=0,maxEnd=0;
+  for(const action of actions){
+    if(action.kind==='wait'){cursor+=action.duration;maxEnd=Math.max(maxEnd,cursor);continue;}
+    let end=cursor;
+    if(action.kind==='notes')end+=noteActionDuration(action);
+    else if(action.kind==='sequence')end+=sequenceDuration(action.name,[...stack,name]);
+    else end+=1;
+    maxEnd=Math.max(maxEnd,end);
+  }
+  return Math.max(1,maxEnd);
+}
+
+function executeAction(action,ctx,baseDelay=0,generation=state.engineGeneration,guard=null){
+  if(action.kind==='panic'){schedule(()=>panic(false),baseDelay,generation,guard);return;}
   if(action.kind==='sequence'){
     const actions=state.sequences.get(action.name); if(!actions){log(outputLog,`unknown sequence ${action.name}`);return;}
+    const duration=sequenceDuration(action.name);
+    schedule(()=>{
+      beginSequenceState(action.name,ctx,generation);
+      schedule(()=>endSequenceState(action.name,generation),duration,generation);
+    },baseDelay,generation,guard);
     let cursor=baseDelay;
-    for(const a of actions){if(a.kind==='wait')cursor+=a.duration; else executeAction(a,ctx,cursor,generation);}
+    for(const a of actions){if(a.kind==='wait')cursor+=a.duration; else executeAction(a,ctx,cursor,generation,guard);}
     return;
   }
-  if(action.kind==='sound'){schedule(()=>playSound(action.source,generation),baseDelay,generation);return;}
-  if(action.kind==='midi'){schedule(()=>playMidiAsset(action.source,generation),baseDelay,generation);return;}
+  if(action.kind==='sound'){schedule(()=>playSound(action.source,generation),baseDelay,generation,guard);return;}
+  if(action.kind==='midi'){schedule(()=>playMidiAsset(action.source,generation),baseDelay,generation,guard);return;}
   if(action.kind!=='notes')return;
 
   let interval=action.every||0, elapsed=baseDelay+(action.after||0);
@@ -267,7 +371,7 @@ function executeAction(action,ctx,baseDelay=0,generation=state.engineGeneration)
         const note=resolveTarget(target,ctx.note??60), vel=resolveVelocity(action.velocity,ctx.velocity??64), ch=action.channel||state.outputChannel||1;
         sendNote(note,vel,ch,action.duration);
       }
-    },elapsed,generation);
+    },elapsed,generation,guard);
     elapsed += interval; interval *= action.accelerate||1;
   }
 }
@@ -275,15 +379,16 @@ function executeAction(action,ctx,baseDelay=0,generation=state.engineGeneration)
 function sendBytes(bytes,timestamp){ for(const out of selectedOutputs()) out.send(bytes,timestamp); }
 function sendNote(note,velocity,channel=1,duration=220){
   const status=0x90+((channel-1)&0x0f), off=0x80+((channel-1)&0x0f);
-  const now=performance.now(); state.likelyEchoes.set(`${channel}:${note}`,now);
+  markLikelyEcho(note,channel,'on');
   sendBytes([status,note,velocity]);
   $('#outputHero').textContent=midiToNoteName(note); $('#outputVelocity').textContent=`velocity ${velocity} · ch ${channel}`;
   log(outputLog,`${midiToNoteName(note)}  vel ${velocity}  ch ${channel}`);
-  const id=setTimeout(()=>{sendBytes([off,note,0]); state.timers.delete(id);},Math.max(10,duration)); state.timers.add(id);
+  const id=setTimeout(()=>{markLikelyEcho(note,channel,'off');sendBytes([off,note,0]); state.timers.delete(id);},Math.max(10,duration)); state.timers.add(id);
 }
 function panic(stopEngine=true){
   if(stopEngine) state.engineGeneration++;
   clearTimers();
+  state.sequencePlaying.clear(); state.whileStates.clear();
   for(let ch=1;ch<=16;ch++){sendBytes([0xb0+(ch-1),123,0]);sendBytes([0xb0+(ch-1),120,0]);}
   if(stopEngine){state.running=false;$('#engineStatus').textContent='stopped';$('#engineStatus').className='status stopped';$('#runButton').textContent='Run rules';}
 }
@@ -297,7 +402,7 @@ async function getAsset(source){
   const resp=await fetch(source);if(!resp.ok)throw new Error(`Could not load ${source}`);return{name:source,type:resp.headers.get('content-type')||guessType(source),data:await resp.arrayBuffer()};
 }
 async function playSound(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const blob=new Blob([a.data],{type:a.type}), url=URL.createObjectURL(blob), audio=new Audio(url);audio.addEventListener('ended',()=>URL.revokeObjectURL(url),{once:true});await audio.play();log(outputLog,`sound ${source}`);}catch(e){log(outputLog,`sound error: ${e.message}`);}}
-async function playMidiAsset(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const mf=parseMidiFile(a.data);for(const e of mf.events){schedule(()=>{const ch=e.channel||state.outputChannel;const status=(e.status==='on'?0x90:0x80)+((ch-1)&15);if(e.status==='on')state.likelyEchoes.set(`${ch}:${e.note}`,performance.now());sendBytes([status,e.note,e.status==='on'?e.velocity:0]);$('#outputHero').textContent=midiToNoteName(e.note);$('#outputVelocity').textContent=`${e.status==='on'?`velocity ${e.velocity}`:'off'} · ch ${ch}`;log(outputLog,`${midiToNoteName(e.note)} ${e.status==='on'?`vel ${e.velocity}`:'off'}  [${source}]`);},e.time,generation);}log(outputLog,`MIDI ${source} · ${mf.events.length} events`);}catch(e){log(outputLog,`MIDI error: ${e.message}`);}}
+async function playMidiAsset(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const mf=parseMidiFile(a.data);for(const e of mf.events){schedule(()=>{const ch=e.channel||state.outputChannel;const status=(e.status==='on'?0x90:0x80)+((ch-1)&15);markLikelyEcho(e.note,ch,e.status==='on'?'on':'off');sendBytes([status,e.note,e.status==='on'?e.velocity:0]);$('#outputHero').textContent=midiToNoteName(e.note);$('#outputVelocity').textContent=`${e.status==='on'?`velocity ${e.velocity}`:'off'} · ch ${ch}`;log(outputLog,`${midiToNoteName(e.note)} ${e.status==='on'?`vel ${e.velocity}`:'off'}  [${source}]`);},e.time,generation);}log(outputLog,`MIDI ${source} · ${mf.events.length} events`);}catch(e){log(outputLog,`MIDI error: ${e.message}`);}}
 
 const assetDrop=$('#assetDrop');
 ['dragenter','dragover'].forEach(ev=>assetDrop.addEventListener(ev,e=>{e.preventDefault();assetDrop.classList.add('drag');}));
@@ -322,6 +427,8 @@ const EXAMPLES=[
   ['Dynamic trigger',`when note C4 velocity 90..127:\n  play [G4 C5 E5] velocity input*0.8 for 500ms`],
   ['Chord trigger',`when chord [C4 E4 G4] within 150ms:\n  play [D5 F#5 A5] velocity 60 for 350ms`],
   ['Accelerating echo',`when any note:\n  play +4 velocity input*0.75 repeat 9 every 420ms accelerate 0.84 for 90ms`],
+  ['While a key is held',`while note C4 down every 180ms:\n  play +7 velocity input*0.6 for 80ms`],
+  ['While a sequence plays',`sequence answer:\n  play +12 for 160ms\n  wait 200ms\n  play +7 for 160ms\n  wait 200ms\n  play +3 for 220ms\n\nwhen note D4:\n  play sequence answer\n\nwhile sequence answer playing every 220ms:\n  play -12 velocity 35 for 80ms`],
   ['Autonomous process',`every random 2s..5s:\n  play random [C4 D4 E4 G4 A4] velocity 25..55 for 140ms`],
   ['File playback',`when note F4:\n  play midi "gesture.mid"\n\nwhen note G4:\n  play sound "resonance.wav"`]
 ];

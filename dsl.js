@@ -22,6 +22,10 @@ after start 8s:
 every random 6s..11s:
   play random [C5 D5 E5 G5 A5] velocity 35..60 for 160ms
 
+# While-rules stay active only while their condition remains true.
+while note C4 down every 180ms:
+  play +7 velocity input*0.6 for 80ms
+
 # Named sequences can be reused.
 sequence answer:
   play +12 velocity input*0.8 for 130ms
@@ -32,6 +36,9 @@ sequence answer:
 
 when note D4:
   play sequence answer
+
+while sequence answer playing every 300ms:
+  play -12 velocity 35 for 100ms
 
 # Drop files onto the bottom bar, then refer to them by filename:
 # when note F4:
@@ -92,8 +99,21 @@ function parseTargets(raw) {
   return splitList(raw).map(parseTarget);
 }
 
+function parseWhileEvery(value) {
+  return value ? parseTime(value) : null;
+}
+
 function parseTrigger(header, lineNo) {
-  let m = header.match(/^when\s+any\s+note(?:\s+velocity\s+(\S+))?$/i);
+  let m = header.match(/^while\s+any\s+note\s+down(?:\s+velocity\s+(\S+))?(?:\s+every\s+(\S+))?$/i);
+  if (m) return { kind:'whileNote', any:true, velocity:parseVelocitySpec(m[1]), every:parseWhileEvery(m[2]), line:lineNo };
+
+  m = header.match(/^while\s+note\s+(\S+)\s+down(?:\s+velocity\s+(\S+))?(?:\s+every\s+(\S+))?$/i);
+  if (m) return { kind:'whileNote', any:false, note:noteNameToMidi(m[1]), velocity:parseVelocitySpec(m[2]), every:parseWhileEvery(m[3]), line:lineNo };
+
+  m = header.match(/^while\s+sequence\s+([\w.-]+)\s+playing(?:\s+every\s+(\S+))?$/i);
+  if (m) return { kind:'whileSequence', name:m[1], every:parseWhileEvery(m[2]), line:lineNo };
+
+  m = header.match(/^when\s+any\s+note(?:\s+velocity\s+(\S+))?$/i);
   if (m) return { kind:'note', any:true, velocity:parseVelocitySpec(m[1]), line:lineNo };
 
   m = header.match(/^when\s+note\s+(\S+)(?:\s+velocity\s+(\S+))?$/i);
