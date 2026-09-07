@@ -1,4 +1,4 @@
-# PianoRules
+# [PianoRules](https://muk-research.github.io/PianoRules/)
 
 A static, browser-based MIDI rule engine for performer–player-piano interaction. It is designed for GitHub Pages and does not require a server.
 
