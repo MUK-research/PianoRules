@@ -210,10 +210,18 @@ function collectReferencedAssets(parsed){
   for(const section of parsed.sections.values()){for(const rule of section.rules)scan(rule.actions);for(const seq of section.sequences.values())scan(seq.actions);}
   return [...refs];
 }
-async function fetchAsset(url,name){
-  const resp=await fetch(url,{cache:'force-cache'});
-  if(!resp.ok)throw new Error(`${resp.status} ${resp.statusText}`);
-  return{name,type:resp.headers.get('content-type')||guessType(name||url),data:await resp.arrayBuffer(),url};
+async function fetchAsset(url, name) {
+  const resp = await fetch(url, { cache: 'no-cache' });
+
+  if (!resp.ok)
+    throw new Error(`${resp.status} ${resp.statusText}`);
+
+  return {
+    name,
+    type: resp.headers.get('content-type') || guessType(name || url),
+    data: await resp.arrayBuffer(),
+    url
+  };
 }
 async function preloadReferencedAssets(parsed,rulesBaseUrl=''){
   state.remoteAssets.clear();const refs=collectReferencedAssets(parsed),errors=[];let loaded=0;
@@ -221,7 +229,8 @@ async function preloadReferencedAssets(parsed,rulesBaseUrl=''){
     const url=resolveRemoteAssetUrl(source,parsed,rulesBaseUrl);
     if(url){
       try{const asset=await fetchAsset(url,source);state.remoteAssets.set(source,asset);loaded++;log(outputLog,`asset ready: ${source}`);}
-      catch(e){errors.push(`Could not preload “${source}” from ${url}: ${e.message}. The host must permit browser/CORS access.`);}
+      catch(e){errors.push(`Could not preload “${source}” from ${url}: ${e.message}. Check that the file exists in the deployed GitHub Pages version
+and that capitalization matches exactly.`);}
       continue;
     }
     if(state.assets.has(source)){loaded++;continue;}
