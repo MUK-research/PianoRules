@@ -51,7 +51,7 @@
       <div class="panel-title">
         <h2>RULES</h2>
         <div class="panel-meta">
-          <span id="activeSectionBadge" class="section-badge">section —</span>
+          <span id="activeSectionBadge" class="section-badge" title="Click another section in the editor to activate it">section —</span>
           <span id="parseStatus">not parsed</span>
         </div>
       </div>
@@ -60,7 +60,7 @@
         <textarea id="editor" wrap="off" spellcheck="false" aria-label="PianoRules editor"></textarea>
       </div>
       <div class="editor-footer">
-        <span>Rules save automatically. Edits go live with <strong>Apply changes</strong> or ⌘/Ctrl+Enter.</span>
+        <span>Rules save automatically. <strong>Click a section to activate it.</strong> Edits go live with <strong>Apply changes</strong> or ⌘/Ctrl+Enter.</span>
         <div>
           <button id="examplesButton">Examples</button>
           <button id="exportButton">Export</button>
@@ -85,7 +85,7 @@
 
   <footer>
     <div><span class="dot" id="midiDot"></span><span id="midiFooter">MIDI not connected</span></div>
-    <div id="assetDrop" class="asset-drop" title="Drop .mid or audio files here">Drop MIDI/audio assets here</div>
+    <div id="assetDrop" class="asset-drop" title="Drop .mid or audio files here; remote assets declared in rules preload on Run">Drop MIDI/audio assets here</div>
     <div class="footer-end"><span id="clock">00:00.000</span><span class="footer-credit">PianoRules by <a href="https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html" target="_blank" rel="noopener">Adrián Artacho</a></span></div>
   </footer>
 

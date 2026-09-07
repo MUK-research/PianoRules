@@ -16,9 +16,10 @@ If the edited script contains a syntax error, PianoRules stops the previous rule
 - Lets performers edit a deliberately human-readable musical rule language in the browser.
 - Remembers the rule script, MIDI device selection, channels, fullscreen preference and feedback-guard settings in `localStorage`.
 - Supports note, velocity, chord, elapsed-time, periodic, randomized, and state-based `while` triggers.
-- Supports independent performance **sections** with trigger-driven section changes; only one section runs at a time.
+- Supports independent performance **sections** with trigger-driven section changes; only one section runs at a time. Section-rule indentation is forgiving, and clicking a section in the editor activates it for rehearsal.
 - Supports absolute notes, relative intervals, chords, repetitions, accelerating/decelerating repetitions, named sequences, MIDI-file playback and audio-file playback.
 - Dragging `.mid`, `.wav`, `.mp3`, etc. onto the bottom bar stores them in IndexedDB for later visits on the same browser/device.
+- Remote assets can be declared in the `.rules` file and are preloaded before the rule engine starts, so playback never begins with an on-demand network download.
 - Includes MIDI-feedback protection for setups where generated Disklavier notes return through MIDI input.
 
 ## Deploy on GitHub Pages
@@ -37,7 +38,6 @@ Press **START PERFORMANCE**. The click is intentionally used to request MIDI per
 
 Open **MIDI** to choose input/output ports and channels. If more than one MIDI output exists, PianoRules deliberately starts with no output selected; choose the Disklavier/Clavinova explicitly. Settings are remembered for future visits. PianoRules first remembers the browser's MIDI port ID and also saves manufacturer/name as a fallback if an ID changes.
 
-
 ## [Documentation](https://muk-research.github.io/PianoRules/docs/) and [shared library](https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw)
 
 The performer-facing musical grammar is documented in [`docs/README.md`](docs/README.md). When the repository is deployed from its root on GitHub Pages, the formatted documentation is available at `/docs/` and is linked from the PianoRules toolbar.
@@ -46,10 +46,11 @@ The shared community file library is:
 
 <https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing>
 
-The intended workflow is to download an asset from the shared folder, drag it into PianoRules, and reference it by filename in a rule.
+The shared Drive folder remains a convenient communal library: download an asset, drag it into PianoRules, and reference it by filename in a rule.
+
+For **automatic runtime preloading**, use a same-origin or CORS-enabled static host (for example an `assets/` folder in the PianoRules GitHub Pages repository). A Google Drive folder is not a normal web directory, and Drive's public download endpoints are not reliably fetchable from browser JavaScript because of CORS restrictions.
 
 ## Rule language
-
 
 ### Sections
 
@@ -74,6 +75,28 @@ section Echoes:
 Changing section resets the previous section's timers, repetitions, named sequences, `while` states and generated sounding notes, then starts the new section with a fresh local clock. Existing files without section headers remain valid and are treated as one implicit `Main` section.
 
 The active section is shown in the editor header and visually emphasized in the code window.
+
+### Forgiving section indentation
+
+`section ...:` is a structural header, so PianoRules does **not** require rule headers beneath it to be indented. These are equivalent:
+
+```text
+section Opening:
+  when any note:
+    play +7
+```
+
+```text
+section Opening:
+when any note:
+  play +7
+```
+
+Actions still need to be indented beneath their own trigger or sequence.
+
+### Clicking sections during rehearsal
+
+Click anywhere inside an inactive section in the editor to make it the active section. If the editor contains unapplied changes, PianoRules applies the current code first and then activates the clicked section. This makes it easy to rehearse or develop one formal region without adding a temporary trigger.
 
 ### Note trigger
 
@@ -151,7 +174,6 @@ when note D4:
 
 Relative notes inside a sequence use the original triggering note as their reference.
 
-
 ### While a key is held
 
 ```text
@@ -199,7 +221,57 @@ when note G4:
   play sound "resonance.wav"
 ```
 
-Files committed alongside the webpage can also be referenced by relative URL (for example `sounds/resonance.wav`) without dropping them first.
+#### Remote asset folder
+
+A rules file can declare a base URL near the beginning:
+
+```text
+assets from "./assets/"
+```
+
+Then any referenced relative file is resolved against that folder:
+
+```text
+when note F4:
+  play midi "gesture.mid"
+
+when note G4:
+  play sound "resonance.wav"
+```
+
+On **Run rules / Apply changes**, PianoRules scans the complete piece and preloads every referenced MIDI/audio asset before the engine starts.
+
+An absolute web folder works too:
+
+```text
+assets from "https://example.org/my-piece-assets/"
+```
+
+The host must allow browser/CORS access.
+
+#### One-off remote files
+
+Override a single filename with an explicit URL:
+
+```text
+asset "special.wav" from "https://example.org/files/special.wav"
+```
+
+The action still uses the short musical name:
+
+```text
+play sound "special.wav"
+```
+
+Direct URLs may also be used as the action source, although named assets make scores easier to read.
+
+For the most dependable GitHub Pages setup, put performance assets in an `assets/` folder inside the repository and write:
+
+```text
+assets from "./assets/"
+```
+
+A public Google Drive **folder** is useful as a communal download library, but it cannot reliably serve this filename-based runtime role: the folder is not a raw directory and Drive download endpoints commonly block cross-origin browser `fetch`.
 
 ## Important browser notes
 
@@ -213,7 +285,6 @@ Files committed alongside the webpage can also be referenced by relative URL (fo
 Start with modest velocities and keep **MIDI feedback guard** enabled until routing is verified. The **Panic** button sends MIDI All Notes Off / All Sound Off on all 16 channels.
 
 The prototype deliberately separates musical rules from device routing, so the same score/rule script can move between a Clavinova, controller keyboard, Disklavier, software instrument, or virtual MIDI port.
-
 
 ## Author
 

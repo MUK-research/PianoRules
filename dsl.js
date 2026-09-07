@@ -1,5 +1,7 @@
 export const DEFAULT_RULES = `# PianoRules — one piece can contain several independent sections.
 # Only one section runs at a time. The first section is active by default.
+# Optional remote asset folder:
+# assets from "./assets/"
 
 section Opening:
   when any note:
@@ -200,9 +202,13 @@ function createSection(name,line,implicit=false){
 export function parseScript(source) {
   const errors=[];
   const lines=source.replace(/\r/g,'').split('\n');
-  const explicitSections=lines.some(raw=>/^section\s+.+:\s*(?:#.*)?$/i.test(raw.trim()) && indentation(raw)===0);
+  // Section headers define the hierarchy themselves. Their own indentation and the
+  // indentation of rule headers beneath them are intentionally forgiving.
+  const explicitSections=lines.some(raw=>/^\s*section\s+.+:\s*(?:#.*)?$/i.test(raw));
   const sections=new Map();
   const sectionOrder=[];
+  const assetUrls=new Map();
+  let assetBaseUrl='';
   let currentSection=null, currentBlock=null, currentBlockIndent=-1;
 
   function addSection(name,line,implicit=false){
@@ -223,21 +229,36 @@ export function parseScript(source) {
     const indent=indentation(withoutComment),text=withoutComment.trim();
 
     try{
-      if(explicitSections && indent===0){
-        if(!text.endsWith(':'))throw new Error(`Line ${lineNo}: top-level content must be a section header ending with :`);
-        const header=text.slice(0,-1).trim(),sm=header.match(/^section\s+(.+)$/i);
-        if(!sm)throw new Error(`Line ${lineNo}: when sections are used, rules must be inside a section`);
-        currentSection=addSection(sm[1],lineNo,false); currentBlock=null; currentBlockIndent=-1; continue;
+      // Global asset declarations may appear before or between sections.
+      let am=text.match(/^assets\s+from\s+((?:"[^"]+")|(?:'[^']+')|\S+)$/i);
+      if(am){
+        assetBaseUrl=stripQuotes(am[1]);
+        continue;
+      }
+      am=text.match(/^asset\s+((?:"[^"]+")|(?:'[^']+')|\S+)\s+from\s+((?:"[^"]+")|(?:'[^']+')|\S+)$/i);
+      if(am){
+        const name=stripQuotes(am[1]),url=stripQuotes(am[2]);
+        if(assetUrls.has(name))throw new Error(`Line ${lineNo}: duplicate asset declaration for “${name}”`);
+        assetUrls.set(name,url);
+        continue;
       }
 
-      if(!currentSection)throw new Error(`Line ${lineNo}: add a section header before this rule`);
+      // A line beginning with "section" is always a section header, regardless of indentation.
+      const sectionMatch=text.match(/^section\s+(.+):$/i);
+      if(sectionMatch){
+        if(!explicitSections)throw new Error(`Line ${lineNo}: internal section parsing error`);
+        currentSection=addSection(sectionMatch[1],lineNo,false); currentBlock=null; currentBlockIndent=-1; continue;
+      }
+
+      if(explicitSections&&!currentSection)throw new Error(`Line ${lineNo}: add a section header before this rule`);
+      if(!currentSection)throw new Error(`Line ${lineNo}: add a rule or section header before this action`);
 
       const isHeader=text.endsWith(':');
       const header=isHeader?text.slice(0,-1).trim():null;
-      const headerAtRuleLevel = explicitSections ? (isHeader && (!currentBlock || indent<=currentBlockIndent)) : (isHeader && indent===0);
 
-      if(headerAtRuleLevel){
-        if(explicitSections && indent<=0)throw new Error(`Line ${lineNo}: rules inside a section must be indented`);
+      // Any colon-ended non-section line is a rule/sequence header. This lets users write
+      // either indented or flush-left rules inside a section; only action indentation matters.
+      if(isHeader){
         const seq=header.match(/^sequence\s+(.+)$/i);
         if(seq){
           const name=seq[1].trim();
@@ -248,18 +269,6 @@ export function parseScript(source) {
           currentSection.rules.push(currentBlock);
         }
         currentBlockIndent=indent; continue;
-      }
-
-      // Legacy (no explicit sections): an unindented header is a rule/sequence.
-      if(!explicitSections && isHeader && indent===0){
-        const seq=header.match(/^sequence\s+(.+)$/i);
-        if(seq){
-          const name=seq[1].trim();currentBlock={type:'sequence',name,actions:[],line:lineNo};
-          currentSection.sequences.set(sectionKey(name),{name,actions:currentBlock.actions,line:lineNo});
-        }else{
-          currentBlock={type:'rule',trigger:parseTrigger(header,lineNo),actions:[],line:lineNo,id:`main:L${lineNo}`};currentSection.rules.push(currentBlock);
-        }
-        currentBlockIndent=indent;continue;
       }
 
       if(!currentBlock)throw new Error(`Line ${lineNo}: action has no trigger or sequence above it`);
@@ -283,6 +292,7 @@ export function parseScript(source) {
   const first=sectionOrder.length?sections.get(sectionKey(sectionOrder[0])):createSection('Main',1,true);
   return {
     sections, sectionOrder, hasExplicitSections:explicitSections, errors,
+    assetBaseUrl, assetUrls,
     // Backward-compatible aliases for older callers.
     rules:first.rules, sequences:new Map([...first.sequences.values()].map(s=>[s.name,s.actions]))
   };

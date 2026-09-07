@@ -215,6 +215,31 @@ Notes that were already physically held before the section change do **not** aut
 
 The currently active section is shown beside the editor title, and its code is visually emphasized in the editor.
 
+
+### Indentation after `section` is optional
+
+The `section ...:` line already establishes the higher structural level, so PianoRules accepts either of these:
+
+```text
+section Opening:
+  when any note:
+    play +7
+```
+
+```text
+section Opening:
+when any note:
+  play +7
+```
+
+You can even mix the two styles between sections. Actions still need to be indented beneath the trigger or sequence they belong to.
+
+### Click a section to rehearse it
+
+Click anywhere inside a section's code in the editor to make that section active immediately. This is useful when developing or rehearsing a particular formal region without creating a temporary MIDI trigger.
+
+If the editor contains changes that have not yet been applied, clicking the section first applies the current script and then activates the clicked section.
+
 ### Sections do not have to be sequential
 
 They can form a line:
@@ -417,12 +442,87 @@ when note G4:
   play sound "resonance.wav"
 ```
 
+### Local assets
+
 To use a local asset:
 
 1. Open PianoRules.
 2. Drag the MIDI or audio file onto the asset area at the bottom of the page.
 3. Refer to it by its filename in the rule.
 4. The browser stores the asset locally for later visits on the same machine/browser.
+
+### A remote asset folder
+
+A piece can declare where its online assets live:
+
+```text
+assets from "./assets/"
+```
+
+This declaration is global and is normally placed near the beginning of the `.rules` file. Relative filenames in `play midi` and `play sound` are resolved against that folder.
+
+For example:
+
+```text
+assets from "./assets/"
+
+section Opening:
+when note F4:
+  play midi "gesture.mid"
+
+when note G4:
+  play sound "resonance.wav"
+```
+
+When you press **Run rules** or **Apply changes**, PianoRules scans the complete piece and preloads every referenced MIDI/audio file. The rule engine starts only after those assets are available, so a performance trigger does not begin a network download.
+
+The base can also be an absolute URL:
+
+```text
+assets from "https://example.org/my-piece-assets/"
+```
+
+The host must serve the files as ordinary static resources and permit browser/CORS access.
+
+### Individual remote assets
+
+A single musical filename can point somewhere else:
+
+```text
+asset "special.wav" from "https://example.org/files/special.wav"
+```
+
+Then the score remains concise:
+
+```text
+when note A4:
+  play sound "special.wav"
+```
+
+This is useful when one file lives outside the common asset folder.
+
+### Recommended GitHub Pages layout
+
+For the most dependable self-contained performance repository:
+
+```text
+index.html
+app.js
+dsl.js
+...
+assets/
+  gesture.mid
+  resonance.wav
+performance.rules
+```
+
+and at the beginning of the rules:
+
+```text
+assets from "./assets/"
+```
+
+Because the files are served from the same GitHub Pages site, browser access is straightforward.
 
 ### Shared PianoRules file library
 
@@ -433,11 +533,11 @@ A communal Google Drive folder is available here:
 The intended workflow is:
 
 1. download an interesting `.mid`, `.wav`, `.mp3`, or other shared asset;
-2. drag it into PianoRules;
+2. drag it into PianoRules or copy it into your repository's `assets/` folder;
 3. copy or write a rule that uses it;
 4. modify the rule and make the material your own.
 
-The shared folder is best understood as a pool of materials, examples and performance resources rather than as part of the runtime itself.
+The shared Drive folder is best understood as a **library/distribution space**, not a raw runtime directory. A Google Drive folder URL cannot be resolved by filename like a normal static web folder, and Drive's public download endpoints are not reliably fetchable from browser JavaScript because of cross-origin restrictions.
 
 ---
 
@@ -537,6 +637,14 @@ The instrument acquires a degree of independence from the performer.
 ---
 
 # Grammar reference
+
+## Global asset declarations
+
+```text
+assets from "./assets/"
+assets from "https://example.org/my-piece-assets/"
+asset "special.wav" from "https://example.org/files/special.wav"
+```
 
 ## Triggers
 

@@ -12,8 +12,9 @@ const state={
   midi:null,inputSelection:'all',outputSelection:'',inputChannel:'all',outputChannel:1,
   running:false,rules:[],sequences:new Map(),sections:new Map(),sectionOrder:[],activeSectionName:'',sectionActivatedAt:0,
   held:new Set(),heldInputs:new Map(),noteHistory:[],timers:new Set(),activeAudio:new Set(),
-  startedAt:0,likelyEchoes:new Map(),assets:new Map(),chordFire:new Map(),sequencePlaying:new Map(),whileStates:new Map(),
-  engineGeneration:0,appliedSource:''
+  startedAt:0,likelyEchoes:new Map(),assets:new Map(),remoteAssets:new Map(),assetBaseUrl:'',assetUrls:new Map(),
+  chordFire:new Map(),sequencePlaying:new Map(),whileStates:new Map(),
+  engineGeneration:0,applyGeneration:0,appliedSource:''
 };
 
 function loadPrefs(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}');}catch{return {};}}
@@ -51,7 +52,7 @@ function findBySignature(map,sig){if(!sig)return null;return[...map.values()].fi
 
 async function requestMidi(){
   if(!navigator.requestMIDIAccess)throw new Error('This browser does not expose Web MIDI. Use a Web-MIDI-capable desktop browser (Chrome/Edge are the safest choice).');
-  state.midi=await navigator.requestMIDIAccess({sysex:false});state.midi.onstatechange=()=>refreshPorts();refreshPorts(true);loadAssets();
+  state.midi=await navigator.requestMIDIAccess({sysex:false});state.midi.onstatechange=()=>refreshPorts();refreshPorts(true);await loadAssets();
 }
 function refreshPorts(first=false){
   if(!state.midi)return;
@@ -146,11 +147,25 @@ function activateSection(name,reason=''){
 }
 function updateActiveSectionUI(){const label=state.activeSectionName||'—';$('#activeSectionBadge').textContent=`section ${label}`;syncEditorHighlight();}
 
-function startEngine(){
-  const source=editor.value;savePrefs();const parsed=parseScript(source);diagnostics.innerHTML=parsed.errors.map(e=>`<div>${escapeHtml(e)}</div>`).join('');panic(true);state.rules=[];state.sequences=new Map();state.sections=new Map();state.sectionOrder=[];state.activeSectionName='';
+async function startEngine(preferredSection=''){
+  const source=editor.value,applyGeneration=++state.applyGeneration;savePrefs();const parsed=parseScript(source);
+  diagnostics.innerHTML=parsed.errors.map(e=>`<div>${escapeHtml(e)}</div>`).join('');panic(true);state.rules=[];state.sequences=new Map();state.sections=new Map();state.sectionOrder=[];state.activeSectionName='';state.remoteAssets.clear();
   if(parsed.errors.length){parseStatus.textContent=`${parsed.errors.length} error${parsed.errors.length>1?'s':''} · rules stopped`;$('#runButton').textContent='Fix & run rules';ruleFired.textContent='rules not running — fix the errors above';updateActiveSectionUI();return false;}
-  state.sections=parsed.sections;state.sectionOrder=parsed.sectionOrder;state.appliedSource=source;state.running=true;$('#engineStatus').textContent='running';$('#engineStatus').className='status running';$('#runButton').textContent='Restart rules';
-  const first=state.sectionOrder[0]||'Main';activateSection(first);return true;
+
+  const runButton=$('#runButton');runButton.disabled=true;runButton.textContent='Loading assets…';parseStatus.textContent='preloading referenced assets…';
+  const assetErrors=await preloadReferencedAssets(parsed);
+  if(applyGeneration!==state.applyGeneration)return false;
+  runButton.disabled=false;
+  if(assetErrors.length){
+    diagnostics.innerHTML=assetErrors.map(e=>`<div>${escapeHtml(e)}</div>`).join('');
+    parseStatus.textContent=`${assetErrors.length} asset error${assetErrors.length>1?'s':''} · rules stopped`;runButton.textContent='Retry assets & run';ruleFired.textContent='rules not running — referenced assets are not ready';updateActiveSectionUI();return false;
+  }
+
+  state.sections=parsed.sections;state.sectionOrder=parsed.sectionOrder;state.assetBaseUrl=parsed.assetBaseUrl||'';state.assetUrls=new Map(parsed.assetUrls);state.appliedSource=source;state.running=true;
+  $('#engineStatus').textContent='running';$('#engineStatus').className='status running';runButton.textContent='Restart rules';
+  const first=preferredSection&&findSection(preferredSection)?findSection(preferredSection).name:(state.sectionOrder[0]||'Main');
+  activateSection(first);
+  return true;
 }
 function recurring(rule,first,interval,generation=state.engineGeneration){schedule(()=>{fireRule(rule,{note:60,velocity:64,channel:state.outputChannel},generation);recurring(rule,interval,interval,generation);},first,generation);}
 function recurringRandom(rule,min,max,generation=state.engineGeneration){const delay=min+Math.random()*(max-min);schedule(()=>{fireRule(rule,{note:60,velocity:64,channel:state.outputChannel},generation);recurringRandom(rule,min,max,generation);},delay,generation);}
@@ -181,17 +196,59 @@ function panic(stopEngine=true){if(stopEngine)state.engineGeneration++;clearTime
 
 async function openDb(){return await new Promise((res,rej)=>{const r=indexedDB.open('pianorules-assets',1);r.onupgradeneeded=()=>r.result.createObjectStore('assets',{keyPath:'name'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function storeAsset(file){const db=await openDb(),data=await file.arrayBuffer();await new Promise((res,rej)=>{const tx=db.transaction('assets','readwrite');tx.objectStore('assets').put({name:file.name,type:file.type||guessType(file.name),data,updated:Date.now()});tx.oncomplete=res;tx.onerror=()=>rej(tx.error);});state.assets.set(file.name,{name:file.name,type:file.type||guessType(file.name),data});log(outputLog,`asset stored: ${file.name}`);}
-async function loadAssets(){try{const db=await openDb(),rows=await new Promise((res,rej)=>{const r=db.transaction('assets').objectStore('assets').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});rows.forEach(x=>state.assets.set(x.name,x));if(rows.length)$('#assetDrop').textContent=`${rows.length} saved asset${rows.length===1?'':'s'} · drop more here`;}catch{}}
-function guessType(n){if(/\.mid(i)?$/i.test(n))return'audio/midi';if(/\.wav$/i.test(n))return'audio/wav';if(/\.mp3$/i.test(n))return'audio/mpeg';return'application/octet-stream';}
-async function getAsset(source){if(state.assets.has(source))return state.assets.get(source);const resp=await fetch(source);if(!resp.ok)throw new Error(`Could not load ${source}`);return{name:source,type:resp.headers.get('content-type')||guessType(source),data:await resp.arrayBuffer()};}
+async function loadAssets(){try{const db=await openDb(),rows=await new Promise((res,rej)=>{const r=db.transaction('assets').objectStore('assets').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});rows.forEach(x=>state.assets.set(x.name,x));if(rows.length)$('#assetDrop').textContent=`${rows.length} saved local asset${rows.length===1?'':'s'} · drop more here`;}catch{}}
+function guessType(n){if(/\.mid(i)?(?:$|[?#])/i.test(n))return'audio/midi';if(/\.wav(?:$|[?#])/i.test(n))return'audio/wav';if(/\.mp3(?:$|[?#])/i.test(n))return'audio/mpeg';if(/\.m4a(?:$|[?#])/i.test(n))return'audio/mp4';if(/\.ogg(?:$|[?#])/i.test(n))return'audio/ogg';return'application/octet-stream';}
+function isAbsoluteUrl(value){try{const u=new URL(value,location.href);return /^https?:$/i.test(u.protocol)&&/^[a-z][a-z0-9+.-]*:/i.test(String(value));}catch{return false;}}
+function resolveRemoteAssetUrl(source,parsed){
+  if(parsed.assetUrls?.has(source))return new URL(parsed.assetUrls.get(source),location.href).href;
+  if(isAbsoluteUrl(source))return new URL(source,location.href).href;
+  if(parsed.assetBaseUrl){
+    const base=new URL(parsed.assetBaseUrl,location.href),baseHref=base.href.endsWith('/')?base.href:base.href+'/';
+    return new URL(source,baseHref).href;
+  }
+  return '';
+}
+function collectReferencedAssets(parsed){
+  const refs=new Set();
+  const scan=actions=>{for(const action of actions){if(action.kind==='sound'||action.kind==='midi')refs.add(action.source);}};
+  for(const section of parsed.sections.values()){for(const rule of section.rules)scan(rule.actions);for(const seq of section.sequences.values())scan(seq.actions);}
+  return [...refs];
+}
+async function fetchAsset(url,name){
+  const resp=await fetch(url,{cache:'force-cache'});
+  if(!resp.ok)throw new Error(`${resp.status} ${resp.statusText}`);
+  return{name,type:resp.headers.get('content-type')||guessType(name||url),data:await resp.arrayBuffer(),url};
+}
+async function preloadReferencedAssets(parsed){
+  state.remoteAssets.clear();const refs=collectReferencedAssets(parsed),errors=[];let loaded=0;
+  for(const source of refs){
+    const url=resolveRemoteAssetUrl(source,parsed);
+    if(url){
+      try{const asset=await fetchAsset(url,source);state.remoteAssets.set(source,asset);loaded++;log(outputLog,`asset ready: ${source}`);}
+      catch(e){errors.push(`Could not preload “${source}” from ${url}: ${e.message}. The host must permit browser/CORS access.`);}
+      continue;
+    }
+    if(state.assets.has(source)){loaded++;continue;}
+    errors.push(`Asset “${source}” is referenced but is neither stored locally nor resolvable from an assets declaration.`);
+  }
+  if(refs.length)$('#assetDrop').textContent=`${loaded}/${refs.length} referenced assets ready · drop local files here`;
+  return errors;
+}
+async function getAsset(source){
+  if(state.remoteAssets.has(source))return state.remoteAssets.get(source);
+  if(state.assets.has(source))return state.assets.get(source);
+  // Direct URLs remain usable even when an action was introduced programmatically.
+  if(isAbsoluteUrl(source))return await fetchAsset(source,source);
+  throw new Error(`Asset “${source}” was not preloaded`);
+}
 async function playSound(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const blob=new Blob([a.data],{type:a.type}),url=URL.createObjectURL(blob),audio=new Audio(url);state.activeAudio.add(audio);const done=()=>{state.activeAudio.delete(audio);URL.revokeObjectURL(url);};audio.addEventListener('ended',done,{once:true});audio.addEventListener('error',done,{once:true});await audio.play();log(outputLog,`sound ${source}`);}catch(e){log(outputLog,`sound error: ${e.message}`);}}
 async function playMidiAsset(source,generation=state.engineGeneration){try{const a=await getAsset(source);if(!state.running||state.engineGeneration!==generation)return;const mf=parseMidiFile(a.data);for(const e of mf.events){schedule(()=>{const ch=e.channel||state.outputChannel,status=(e.status==='on'?0x90:0x80)+((ch-1)&15);markLikelyEcho(e.note,ch,e.status==='on'?'on':'off');sendBytes([status,e.note,e.status==='on'?e.velocity:0]);$('#outputHero').textContent=midiToNoteName(e.note);$('#outputVelocity').textContent=`${e.status==='on'?`velocity ${e.velocity}`:'off'} · ch ${ch}`;log(outputLog,`${midiToNoteName(e.note)} ${e.status==='on'?`vel ${e.velocity}`:'off'}  [${source}]`);},e.time,generation);}log(outputLog,`MIDI ${source} · ${mf.events.length} events`);}catch(e){log(outputLog,`MIDI error: ${e.message}`);}}
 
 const assetDrop=$('#assetDrop');['dragenter','dragover'].forEach(ev=>assetDrop.addEventListener(ev,e=>{e.preventDefault();assetDrop.classList.add('drag');}));['dragleave','drop'].forEach(ev=>assetDrop.addEventListener(ev,e=>{e.preventDefault();assetDrop.classList.remove('drag');}));assetDrop.addEventListener('drop',async e=>{for(const f of e.dataTransfer.files)await storeAsset(f);assetDrop.textContent=`${state.assets.size} saved asset${state.assets.size===1?'':'s'} · drop more here`;});
 
-$('#runButton').addEventListener('click',startEngine);$('#panicButton').addEventListener('click',()=>panic(true));$('#settingsButton').addEventListener('click',()=>$('#settingsDialog').showModal());$('#fullscreenButton').addEventListener('click',toggleFullscreen);
+$('#runButton').addEventListener('click',()=>{void startEngine();});$('#panicButton').addEventListener('click',()=>panic(true));$('#settingsButton').addEventListener('click',()=>$('#settingsDialog').showModal());$('#fullscreenButton').addEventListener('click',toggleFullscreen);
 async function toggleFullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{}}
-$('#startButton').addEventListener('click',async()=>{$('#startError').textContent='';try{if($('#fullscreenPreference').checked&&!document.fullscreenElement){try{await document.documentElement.requestFullscreen();}catch{}}await requestMidi();$('#startOverlay').classList.add('hidden');startEngine();}catch(e){$('#startError').textContent=e.message;}});
+$('#startButton').addEventListener('click',async()=>{$('#startError').textContent='';try{if($('#fullscreenPreference').checked&&!document.fullscreenElement){try{await document.documentElement.requestFullscreen();}catch{}}await requestMidi();$('#startOverlay').classList.add('hidden');await startEngine();}catch(e){$('#startError').textContent=e.message;}});
 
 const EXAMPLES=[
  ['Mirror / transpose',`when any note:\n  play +12 velocity input after 60ms\n  play -12 velocity input*0.7 after 130ms`],
@@ -205,27 +262,37 @@ const EXAMPLES=[
  ['File playback',`when note F4:\n  play midi "gesture.mid"\n\nwhen note G4:\n  play sound "resonance.wav"`]
 ];
 function insertExample(code){
-  const src=editor.value,lines=src.split('\n'),headers=[];lines.forEach((line,i)=>{const m=line.match(/^section\s+(.+):\s*$/i);if(m)headers.push({i,name:m[1].trim()});});
+  const src=editor.value,lines=src.split('\n'),headers=[];lines.forEach((line,i)=>{const m=line.match(/^\s*section\s+(.+):\s*$/i);if(m)headers.push({i,name:m[1].trim()});});
   if(!headers.length){editor.value=src.trimEnd()+`\n\n${code}\n`;return;}
   const activeKey=normalizeSectionName(state.activeSectionName||headers[0].name);let idx=headers.findIndex(h=>normalizeSectionName(h.name)===activeKey);if(idx<0)idx=0;const insertAt=idx+1<headers.length?headers[idx+1].i:lines.length;const indented=code.split('\n').map(l=>l?'  '+l:'').join('\n');lines.splice(insertAt,0,'',indented,'');editor.value=lines.join('\n');
 }
 $('#examplesButton').addEventListener('click',()=>{const list=$('#examplesList');list.innerHTML='';for(const[name,code]of EXAMPLES){const d=document.createElement('div');d.className='example';d.innerHTML=`<h3>${escapeHtml(name)}</h3><pre>${escapeHtml(code)}</pre><button type="button">Add to current section</button>`;d.querySelector('button').onclick=()=>{insertExample(code);savePrefs();updateEditorState();$('#examplesDialog').close();};list.appendChild(d);}$('#examplesDialog').showModal();});
 $('#exportButton').addEventListener('click',()=>{const blob=new Blob([editor.value],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='performance.rules';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
-$('#importInput').addEventListener('change',async e=>{const f=e.target.files[0];if(f){editor.value=await f.text();savePrefs();syncEditorHighlight();startEngine();}e.target.value='';});
+$('#importInput').addEventListener('change',async e=>{const f=e.target.files[0];if(f){editor.value=await f.text();savePrefs();syncEditorHighlight();await startEngine();}e.target.value='';});
 
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function sectionRanges(source){
-  const lines=source.replace(/\r/g,'').split('\n'),heads=[];lines.forEach((line,i)=>{const m=line.match(/^section\s+(.+):\s*(?:#.*)?$/i);if(m)heads.push({start:i,name:m[1].trim()});});
+  const lines=source.replace(/\r/g,'').split('\n'),heads=[];lines.forEach((line,i)=>{const m=line.match(/^\s*section\s+(.+):\s*(?:#.*)?$/i);if(m)heads.push({start:i,name:m[1].trim()});});
   if(!heads.length)return{lines,ranges:[{start:0,end:lines.length-1,name:'Main'}]};
   return{lines,ranges:heads.map((h,i)=>({...h,end:(heads[i+1]?.start??lines.length)-1}))};
 }
 function syncEditorHighlight(){
   if(!editorHighlight)return;const{lines,ranges}=sectionRanges(editor.value),active=normalizeSectionName(state.activeSectionName||ranges[0]?.name||'Main');
   const activeRange=ranges.find(r=>normalizeSectionName(r.name)===active)||null;
-  editorHighlight.innerHTML=lines.map((line,i)=>{const range=ranges.find(r=>i>=r.start&&i<=r.end),isActive=!!activeRange&&i>=activeRange.start&&i<=activeRange.end,isHeader=/^section\s+.+:\s*(?:#.*)?$/i.test(line);return`<span class="editor-line${isActive?' active-section':''}${isHeader?' section-header':''}">${line?escapeHtml(line):'&nbsp;'}</span>`;}).join('');
+  editorHighlight.innerHTML=lines.map((line,i)=>{const range=ranges.find(r=>i>=r.start&&i<=r.end),isActive=!!activeRange&&i>=activeRange.start&&i<=activeRange.end,isHeader=/^\s*section\s+.+:\s*(?:#.*)?$/i.test(line);return`<span class="editor-line${isActive?' active-section':''}${isHeader?' section-header':''}" data-section="${range?escapeHtml(range.name):''}">${line?escapeHtml(line):'&nbsp;'}</span>`;}).join('');
   syncEditorScroll();
 }
+async function activateSectionFromEditorClick(){
+  const before=editor.value.slice(0,editor.selectionStart),line=Math.max(0,before.split('\n').length-1);
+  const {ranges}=sectionRanges(editor.value),range=ranges.find(r=>line>=r.start&&line<=r.end);if(!range)return;
+  const target=range.name,pending=editor.value!==state.appliedSource;
+  if(state.running&&!pending&&normalizeSectionName(target)===normalizeSectionName(state.activeSectionName))return;
+  if(!state.running||pending){await startEngine(target);return;}
+  activateSection(target,'editor click');
+}
+editor.addEventListener('click',()=>{void activateSectionFromEditorClick();});
+
 function syncEditorScroll(){if(!editorHighlight)return;editorHighlight.scrollTop=editor.scrollTop;editorHighlight.scrollLeft=editor.scrollLeft;}
 
-window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();startEngine();}});window.addEventListener('beforeunload',()=>panic(false));
+window.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();void startEngine();}});window.addEventListener('beforeunload',()=>panic(false));
 syncEditorHighlight();updateActiveSectionUI();

@@ -133,6 +133,17 @@ section Echoes:
       <p>A section change can itself be the action produced by a note, chord, dynamic condition, timer, held-note process, or sequence.</p>
       <div class="callout"><strong>Changing section is a reset:</strong> the old section's timers, repetitions, sequences and <code>while</code> processes are cancelled; PianoRules sends all-notes-off / all-sound-off, stops audio it started, resets the local section clock, and activates only the new section's code.</div>
       <p>The active section is shown beside the editor title, and that section's code is visually emphasized in the code window. Notes that were already held before a section change do not automatically start a new held-note process in the new section.</p>
+      <h3>Indentation after <code>section</code> is optional</h3>
+      <p>The section header already establishes the structural level, so both styles are valid:</p>
+      <pre><code>section Opening:
+  when any note:
+    play +7</code></pre>
+      <pre><code>section Opening:
+when any note:
+  play +7</code></pre>
+      <p>Actions still need to be indented beneath the trigger or sequence they belong to.</p>
+      <h3>Click a section to rehearse it</h3>
+      <p>Click anywhere inside an inactive section's code in the editor to activate that section immediately. If the editor contains unapplied changes, PianoRules applies the current script first and then enters the clicked section.</p>
       <h3>Open form rather than a fixed chain</h3>
       <p>Sections do not have to follow one another sequentially. They can loop, branch, return, or be selected by the performer. This makes them useful for improvisational navigation, game-like forms, open scores, and pieces in which the piano itself helps determine the next formal state.</p>
       <p>A file without any <code>section ...:</code> headings still works and is treated as one implicit section called <code>Main</code>.</p>
@@ -183,8 +194,36 @@ when note D4:
 
 when note G4:
   play sound "resonance.wav"</code></pre>
+
+      <h3>Local assets</h3>
       <p>Drag files onto the asset area at the bottom of PianoRules. They are stored locally in that browser, so you can use the filename in your rules on later visits.</p>
-      <div class="callout"><strong>Shared library:</strong> <a target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing">open the communal Google Drive folder</a>, download an interesting asset, drag it into PianoRules, then modify the associated rule to make it your own.</div>
+
+      <h3>Remote asset folder</h3>
+      <p>Declare a global folder near the beginning of a rules file:</p>
+      <pre><code>assets from "./assets/"</code></pre>
+      <p>Relative filenames used by <code>play midi</code> and <code>play sound</code> are resolved against that folder. An absolute web folder is also valid:</p>
+      <pre><code>assets from "https://example.org/my-piece-assets/"</code></pre>
+      <div class="callout"><strong>Preloading:</strong> whenever you press <strong>Run rules</strong> or <strong>Apply changes</strong>, PianoRules scans the complete piece and downloads every referenced remote asset before starting the engine. If an asset cannot be prepared, the rules remain stopped and the problem is shown in the diagnostics.</div>
+
+      <h3>One-off remote files</h3>
+      <pre><code>asset "special.wav" from "https://example.org/files/special.wav"
+
+when note A4:
+  play sound "special.wav"</code></pre>
+      <p>This keeps the musical action readable even when one file lives somewhere else.</p>
+
+      <h3>Recommended GitHub Pages layout</h3>
+      <pre><code>index.html
+app.js
+dsl.js
+...
+assets/
+  gesture.mid
+  resonance.wav
+performance.rules</code></pre>
+      <p>Then use <code>assets from "./assets/"</code>. Same-origin static assets are the simplest and most dependable performance setup.</p>
+
+      <div class="callout"><strong>Shared library:</strong> <a target="_blank" rel="noopener" href="https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw?usp=sharing">open the communal Google Drive folder</a>, download an interesting asset, then either drag it into PianoRules or copy it into your repository's <code>assets/</code> folder. A Google Drive folder is useful as a library/distribution space, but not as a raw filename-addressable runtime folder; Drive download endpoints are not reliably fetchable from browser JavaScript because of cross-origin restrictions.</div>
     </section>
 
     <section id="explore">
@@ -207,6 +246,10 @@ when any note velocity 90..127:
 
     <section id="reference">
       <h2>Compact grammar reference</h2>
+      <h3>Global asset declarations</h3>
+      <pre><code>assets from "./assets/"
+assets from "https://example.org/my-piece-assets/"
+asset "special.wav" from "https://example.org/files/special.wav"</code></pre>
       <h3>Triggers</h3>
       <pre><code>when any note:
 when any note velocity 40..100:
