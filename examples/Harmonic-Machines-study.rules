@@ -1,0 +1,73 @@
+# Harmonic Machines — an example PianoRules study
+# This is an original demonstration of responsive-piano techniques:
+# harmonic reservoirs, tremolo clouds, ostinati, phrase memory, loops and canons.
+# C7 advances; C1 returns to Solo.
+
+section Solo:
+  when chord played notes 3..6 within 170ms:
+    remember chord as harmony
+
+  when any note:
+    play +12 velocity input*0.18 after 900ms for 120ms
+
+  when note C7:
+    go to section Cloud
+
+section Cloud:
+  when chord played notes 3..6 within 170ms:
+    morph harmony to chord over 2s
+
+  while harmony exists every 65ms:
+    play random note from harmony octave random -2..+2 velocity 14..32 for 48ms
+
+  while harmony exists every 900ms:
+    play random note from harmony range C6..C8 velocity 18..34 for 500ms
+
+  when note C7:
+    go to section Pulse
+
+  when note C1:
+    go to section Solo
+
+section Pulse:
+  when chord played notes 3..6 within 170ms:
+    remember chord as harmony
+
+  while harmony exists every 190ms:
+    play next note from harmony pattern [1 3 2 4 3 2] octave -1 velocity 38 for 105ms
+
+  while harmony exists every random 700ms..1.8s:
+    play random note from harmony octave +2 velocity 18..34 for 420ms
+
+  when note C7:
+    go to section Looper
+
+  when note C1:
+    go to section Solo
+
+section Looper:
+  when phrase ends after 850ms:
+    remember phrase as phrase1
+    loop remembered phrase1 every 4s velocity *0.48 timing * random 0.88..1.12
+
+  when note C7:
+    go to section Canon
+
+  when note C1:
+    go to section Solo
+
+section Canon:
+  when any note:
+    play +12 velocity input*0.58 after 320ms for 130ms
+    play -7 velocity input*0.38 after 680ms for 160ms
+    play +5 velocity input*0.24 after 1150ms for 190ms
+
+  when phrase ends after 900ms:
+    remember phrase as melody
+    play remembered melody backwards transpose +12 velocity *0.42 timing *1.18
+
+  when note C7:
+    go to section Cloud
+
+  when note C1:
+    go to section Solo

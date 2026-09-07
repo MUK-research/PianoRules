@@ -21,7 +21,6 @@ PianoRules is a static, browser-based MIDI rule engine for interactive piano per
 - Remembered MIDI routing and fullscreen preferences.
 - MIDI feedback protection for player-piano loops.
 
-
 ## Quick start
 
 Press **START PERFORMANCE**, then open **MIDI** and choose an input and output.
@@ -82,6 +81,8 @@ Changing section is a hard musical reset: timers, loops, sequences, sounding gen
 
 Existing files without section headers remain valid as one implicit `Main` section.
 
+During performance, you can also **click anywhere inside an inactive section in the code editor** to activate it immediately. This is equivalent to a section change: the previous section is reset and the clicked section becomes the running code. If the editor contains unapplied changes, PianoRules leaves the section unchanged until you apply the edits, to avoid accidentally running half-edited code.
+
 ## Shared rulesets
 
 A URL such as:
@@ -138,7 +139,7 @@ It includes dedicated setup instructions for:
 - Ableton Live and software piano libraries using virtual MIDI ports;
 - shared Library rulesets and assets.
 
-## [shared library](https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw)
+## [Shared library](https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw)
 
 The toolbar's **Files** button opens the communal Google Drive folder:
 

@@ -222,6 +222,8 @@ When a section changes, PianoRules performs a hard musical reset:
 
 A file with no `section` headers still works as one implicit section called `Main`.
 
+During performance, you can also **click anywhere inside an inactive section in the code editor** to activate it immediately. This is equivalent to a section change: the previous section is reset and the clicked section becomes the running code. If the editor contains unapplied changes, PianoRules leaves the section unchanged until you apply the edits, to avoid accidentally running half-edited code.
+
 ---
 
 # 6. Basic note actions
