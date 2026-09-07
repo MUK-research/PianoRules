@@ -1,0 +1,83 @@
+# Machines example
+
+section Machine:
+
+  when chord played:
+    remember chord as harmony
+
+  # low ostinato
+  while harmony exists every 300ms:
+    play next note from harmony
+      pattern [1 3 2 4]
+      octave -1
+      velocity 38
+      for 180ms
+
+  # middle tremolo
+  while harmony exists every random 55ms..100ms:
+    play random note from harmony
+      octave random -1..+1
+      velocity 15..32
+      for 50ms
+
+  # occasional high echo
+  while harmony exists every random 1.5s..4s:
+    play random note from harmony
+      octave +2
+      velocity 20..45
+      for 600ms
+
+section Solo:
+
+  when chord played notes 3..6:
+    remember chord as harmony
+
+  when note C7:
+    go to section Tremolo
+
+
+section Tremolo:
+
+  when chord played notes 3..6:
+    replace harmony with chord
+
+  while harmony exists every random 45ms..90ms:
+    play random note from harmony
+      octave random -2..+2
+      velocity 15..38
+      for random 35ms..90ms
+
+  when note C7:
+    go to section Pulse
+
+
+section Pulse:
+
+  when chord played notes 3..6:
+    replace harmony with chord
+
+  while harmony exists every 180ms:
+    play next note from harmony
+      pattern [1 3 2 4 3 2]
+      octave -1
+      velocity 38
+      for 100ms
+
+  while harmony exists every random 700ms..1800ms:
+    play random note from harmony
+      octave +2
+      velocity 20..35
+      for 400ms
+
+  when note C7:
+    go to section Canon
+
+
+section Canon:
+
+  when any note:
+    play +12 velocity input*0.65 after 320ms
+    play -12 velocity input*0.40 after 640ms
+
+  when note C7:
+    go to section Solo
