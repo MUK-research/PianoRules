@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0f12" />
+  <title>PianoRules — browser MIDI rule engine</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="startOverlay" class="start-overlay">
+    <div class="start-card">
+      <div class="eyebrow">PIANO ↔ ALGORITHM ↔ PIANO</div>
+      <h1>PianoRules</h1>
+      <p>A performer-friendly MIDI rule engine for Clavinova, Disklavier and other MIDI instruments.</p>
+      <button id="startButton" class="primary huge">START PERFORMANCE</button>
+      <p class="small">The first click requests MIDI access and, when enabled, fullscreen.</p>
+      <div id="startError" class="error"></div>
+    </div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <strong>PianoRules</strong>
+      <span id="engineStatus" class="status stopped">stopped</span>
+    </div>
+    <div class="toolbar">
+      <button id="runButton" class="primary">Run rules</button>
+      <button id="panicButton">Panic</button>
+      <button id="fullscreenButton">Fullscreen</button>
+      <button id="settingsButton">MIDI</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="panel monitor-panel">
+      <div class="panel-title">
+        <h2>INPUT</h2>
+        <span id="inputDeviceLabel">no device</span>
+      </div>
+      <div id="inputHero" class="hero-note">—</div>
+      <div id="inputVelocity" class="hero-sub">velocity —</div>
+      <div id="heldNotes" class="chips"></div>
+      <div class="log-title">incoming MIDI</div>
+      <div id="inputLog" class="log"></div>
+    </section>
+
+    <section class="panel editor-panel">
+      <div class="panel-title">
+        <h2>RULES</h2>
+        <span id="parseStatus">not parsed</span>
+      </div>
+      <textarea id="editor" spellcheck="false" aria-label="PianoRules editor"></textarea>
+      <div class="editor-footer">
+        <span>Rules save automatically in this browser.</span>
+        <div>
+          <button id="examplesButton">Examples</button>
+          <button id="exportButton">Export</button>
+          <label class="button-label">Import<input id="importInput" type="file" accept=".rules,.txt,text/plain" /></label>
+        </div>
+      </div>
+      <div id="diagnostics" class="diagnostics"></div>
+    </section>
+
+    <section class="panel monitor-panel">
+      <div class="panel-title">
+        <h2>OUTPUT</h2>
+        <span id="outputDeviceLabel">no device</span>
+      </div>
+      <div id="outputHero" class="hero-note">—</div>
+      <div id="outputVelocity" class="hero-sub">velocity —</div>
+      <div id="ruleFired" class="rule-fired">waiting for a rule…</div>
+      <div class="log-title">generated MIDI</div>
+      <div id="outputLog" class="log"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div><span class="dot" id="midiDot"></span><span id="midiFooter">MIDI not connected</span></div>
+    <div id="assetDrop" class="asset-drop" title="Drop .mid or audio files here">Drop MIDI/audio assets here</div>
+    <div id="clock">00:00.000</div>
+  </footer>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-title"><h2>MIDI setup</h2><button value="cancel" aria-label="Close">×</button></div>
+      <label>Input device<select id="inputSelect"></select></label>
+      <label>Output device<select id="outputSelect"></select></label>
+      <label>Input channel<select id="inputChannel"><option value="all">All channels</option></select></label>
+      <label>Output channel<select id="outputChannel"></select></label>
+      <label class="check"><input id="fullscreenPreference" type="checkbox" /> Enter fullscreen when performance starts</label>
+      <label class="check"><input id="echoGuard" type="checkbox" checked /> Ignore likely MIDI feedback from generated notes</label>
+      <label>Echo-guard window <input id="echoGuardMs" type="number" min="0" max="1000" step="10" value="100" /> ms</label>
+      <div class="hint">Configuration is remembered locally. If a device ID changes, PianoRules falls back to matching its name/manufacturer.</div>
+      <button id="refreshMidiButton" type="button">Refresh MIDI devices</button>
+    </form>
+  </dialog>
+
+  <dialog id="examplesDialog">
+    <form method="dialog" class="dialog-card examples-card">
+      <div class="dialog-title"><h2>Rule examples</h2><button value="cancel" aria-label="Close">×</button></div>
+      <div id="examplesList"></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
