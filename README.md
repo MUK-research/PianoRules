@@ -1,4 +1,4 @@
-# PianoRules
+# [PianoRules](https://muk-research.github.io/PianoRules/)
 
 A static, browser-based MIDI rule engine for performer–player-piano interaction. It is designed for GitHub Pages and does not require a server.
 
@@ -38,7 +38,7 @@ Press **START PERFORMANCE**. The click is intentionally used to request MIDI per
 Open **MIDI** to choose input/output ports and channels. If more than one MIDI output exists, PianoRules deliberately starts with no output selected; choose the Disklavier/Clavinova explicitly. Settings are remembered for future visits. PianoRules first remembers the browser's MIDI port ID and also saves manufacturer/name as a fallback if an ID changes.
 
 
-## Documentation and shared files
+## [Documentation](https://muk-research.github.io/PianoRules/docs/) and [shared library](https://drive.google.com/drive/folders/13X9AR03kODoQFeSk52oS9WSVNPSqHkpw)
 
 The performer-facing musical grammar is documented in [`docs/README.md`](docs/README.md). When the repository is deployed from its root on GitHub Pages, the formatted documentation is available at `/docs/` and is linked from the PianoRules toolbar.
 
