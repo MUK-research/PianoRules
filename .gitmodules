@@ -1,0 +1,3 @@
+[submodule "Library/Gamelan"]
+	path = Library/Gamelan
+	url = git@github.com:AdrianArtacho/Rule-Gamelan.git
