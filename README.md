@@ -16,6 +16,7 @@ If the edited script contains a syntax error, PianoRules stops the previous rule
 - Lets performers edit a deliberately human-readable musical rule language in the browser.
 - Remembers the rule script, MIDI device selection, channels, fullscreen preference and feedback-guard settings in `localStorage`.
 - Supports note, velocity, chord, elapsed-time, periodic, randomized, and state-based `while` triggers.
+- Supports independent performance **sections** with trigger-driven section changes; only one section runs at a time.
 - Supports absolute notes, relative intervals, chords, repetitions, accelerating/decelerating repetitions, named sequences, MIDI-file playback and audio-file playback.
 - Dragging `.mid`, `.wav`, `.mp3`, etc. onto the bottom bar stores them in IndexedDB for later visits on the same browser/device.
 - Includes MIDI-feedback protection for setups where generated Disklavier notes return through MIDI input.
@@ -48,6 +49,31 @@ The shared community file library is:
 The intended workflow is to download an asset from the shared folder, drag it into PianoRules, and reference it by filename in a rule.
 
 ## Rule language
+
+
+### Sections
+
+A piece can contain several independent rule sets. The first section is active by default:
+
+```text
+section Opening:
+  when any note:
+    play +7
+
+  when note C7:
+    go to section Echoes
+
+section Echoes:
+  every 2s:
+    play random [C4 E4 G4]
+
+  when note C1:
+    go to section Opening
+```
+
+Changing section resets the previous section's timers, repetitions, named sequences, `while` states and generated sounding notes, then starts the new section with a fresh local clock. Existing files without section headers remain valid and are treated as one implicit `Main` section.
+
+The active section is shown in the editor header and visually emphasized in the code window.
 
 ### Note trigger
 
@@ -187,3 +213,8 @@ Files committed alongside the webpage can also be referenced by relative URL (fo
 Start with modest velocities and keep **MIDI feedback guard** enabled until routing is verified. The **Panic** button sends MIDI All Notes Off / All Sound Off on all 16 channels.
 
 The prototype deliberately separates musical rules from device routing, so the same score/rule script can move between a Clavinova, controller keyboard, Disklavier, software instrument, or virtual MIDI port.
+
+
+## Author
+
+PianoRules was created by **Adrián Artacho**, composer and educator at the [Music and Arts University of the City of Vienna (MUK)](https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html).

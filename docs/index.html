@@ -33,11 +33,13 @@
     <a href="#when">Event triggers</a>
     <a href="#while">While triggers</a>
     <a href="#time">Time triggers</a>
+    <a href="#sections">Sections &amp; form</a>
     <a href="#actions">Actions</a>
     <a href="#sequences">Sequences</a>
     <a href="#files">Files</a>
     <a href="#explore">Things to explore</a>
     <a href="#reference">Grammar reference</a>
+    <a href="#credits">Credits</a>
   </nav>
 
   <article>
@@ -111,6 +113,31 @@ while sequence answer playing every 220ms:
       <p>These rules let the instrument have temporal behaviour that is not directly controlled by the pianist.</p>
     </section>
 
+
+    <section id="sections">
+      <h2>Sections and musical form</h2>
+      <p>A piece can contain several independent <strong>sections</strong>. Only one section is active at a time, and the first section in the file is active by default.</p>
+      <pre><code>section Opening:
+  when any note:
+    play +7 velocity input*0.5
+
+  when note C7:
+    go to section Echoes
+
+section Echoes:
+  every random 2s..5s:
+    play random [C4 E4 G4 B4] velocity 25..50
+
+  when note C1:
+    go to section Opening</code></pre>
+      <p>A section change can itself be the action produced by a note, chord, dynamic condition, timer, held-note process, or sequence.</p>
+      <div class="callout"><strong>Changing section is a reset:</strong> the old section's timers, repetitions, sequences and <code>while</code> processes are cancelled; PianoRules sends all-notes-off / all-sound-off, stops audio it started, resets the local section clock, and activates only the new section's code.</div>
+      <p>The active section is shown beside the editor title, and that section's code is visually emphasized in the code window. Notes that were already held before a section change do not automatically start a new held-note process in the new section.</p>
+      <h3>Open form rather than a fixed chain</h3>
+      <p>Sections do not have to follow one another sequentially. They can loop, branch, return, or be selected by the performer. This makes them useful for improvisational navigation, game-like forms, open scores, and pieces in which the piano itself helps determine the next formal state.</p>
+      <p>A file without any <code>section ...:</code> headings still works and is treated as one implicit section called <code>Main</code>.</p>
+    </section>
+
     <section id="actions">
       <h2>Actions</h2>
       <table>
@@ -128,6 +155,7 @@ while sequence answer playing every 220ms:
         <tr><td>Accelerate</td><td><code>accelerate 0.84</code></td></tr>
         <tr><td>Decelerate</td><td><code>accelerate 1.18</code></td></tr>
         <tr><td>Output channel</td><td><code>channel 2</code></td></tr>
+        <tr><td>Change section</td><td><code>go to section Echoes</code></td></tr>
       </table>
       <pre><code>when any note:
   play +4 velocity input*0.7 repeat 9 every 420ms accelerate 0.84 for 90ms</code></pre>
@@ -211,10 +239,18 @@ play C5 repeat 8 every 200ms
 play +4 repeat 10 every 400ms accelerate 0.84
 play C5 channel 2
 play sequence answer
+go to section Echoes
 play midi "gesture.mid"
 play sound "resonance.wav"
 wait 250ms
 stop all</code></pre>
+    </section>
+
+
+    <section id="credits">
+      <h2>Credits</h2>
+      <p><strong>PianoRules</strong> was created by <strong>Adrián Artacho</strong>, composer and educator at the <a href="https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html" target="_blank" rel="noopener">Music and Arts University of the City of Vienna (MUK)</a>.</p>
+      <p>The project is conceived as an open environment for performer–algorithm interaction, experimentation, teaching, and shared musical materials.</p>
     </section>
 
     <footer>The aim is not to make the performer write conventional software. It is to make musical relationships explicit, editable and playable.</footer>

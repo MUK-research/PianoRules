@@ -174,6 +174,69 @@ This is useful for creating environments rather than fixed accompaniments.
 
 ---
 
+---
+
+# Sections and musical form
+
+A PianoRules piece can contain several **sections**. Sections are independent rule sets: only one section is active at a time.
+
+The first section in the file is active when the rules start.
+
+```text
+section Opening:
+  when any note:
+    play +7 velocity input*0.5
+
+  when note C7:
+    go to section Echoes
+
+section Echoes:
+  every random 2s..5s:
+    play random [C4 E4 G4 B4] velocity 25..50
+
+  when note C1:
+    go to section Opening
+```
+
+A section change can therefore be triggered by exactly the same kinds of musical events that trigger other actions: a particular note, a chord, a dynamic region, a timer, a `while` process, or a named sequence.
+
+### What happens when a section changes?
+
+Changing section is a formal reset. PianoRules:
+
+- stops the previous section's timers and repetitions;
+- cancels its active named sequences and `while` processes;
+- sends all-notes-off / all-sound-off safety messages to MIDI outputs;
+- stops audio files that PianoRules started;
+- resets the section clock, so `after start ...` is measured from the moment the new section begins;
+- activates only the rules and sequences belonging to the new section.
+
+Notes that were already physically held before the section change do **not** automatically open a new `while ... down` process in the new section. Play a new note after the change to begin a new held-note state.
+
+The currently active section is shown beside the editor title, and its code is visually emphasized in the editor.
+
+### Sections do not have to be sequential
+
+They can form a line:
+
+```text
+Opening → Middle → Ending
+```
+
+but they can just as easily form a branching or circular structure:
+
+```text
+Calm → Dense → Calm
+  ↘       ↓
+    Solo ←
+```
+
+This makes sections useful for open forms, performer choice, improvisational navigation, game-like structures, and pieces in which the piano itself decides where the form goes next.
+
+### Backward compatibility
+
+A rules file with no `section ...:` headings still works. PianoRules treats it as one implicit section called `Main`.
+
 # Actions
 
 ## 4. Play notes
@@ -518,6 +581,7 @@ play +4 repeat 10 every 400ms accelerate 0.84
 play C5 channel 2
 
 play sequence answer
+go to section Echoes
 play midi "gesture.mid"
 play sound "resonance.wav"
 wait 250ms
@@ -541,3 +605,12 @@ Try to think of PianoRules less as *automatic accompaniment* and more as a way o
 - randomisation can give the instrument partial autonomy.
 
 The most interesting rules are often not the most complicated ones. A very small rule can change how a performer listens, waits, phrases, or chooses what to play next.
+
+
+---
+
+# Credits
+
+**PianoRules** was created by **Adrián Artacho**, composer and educator at the [Music and Arts University of the City of Vienna (MUK)](https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html).
+
+The project is conceived as an open environment for performer–algorithm interaction, experimentation, teaching, and shared musical materials.
