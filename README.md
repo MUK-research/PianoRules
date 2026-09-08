@@ -159,3 +159,5 @@ Start with modest velocities and density. Leave the MIDI feedback guard enabled 
 ## Author
 
 PianoRules was conceived and developed by **Adrián Artacho**, composer, researcher and educator at the [Music and Arts University of the City of Vienna (MUK)](https://muk.ac.at/studienangebot/lehrende/details/adrian-artacho.html).
+
+## 📝 [To-Do](https://trello.com/c/vRaARLms/76-oliver-potratz-tepferism-pianorules)
