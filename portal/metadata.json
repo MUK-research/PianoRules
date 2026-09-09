@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "title": "PianoRules",
+  "description": "Give the piano a new set of possibilities. Human-readable rules turn gestures, chords and remembered phrases into responsive musical behaviours — for improvisation, composition and teaching.",
+  "category": "performance",
+  "format": "Browser tool",
+  "status": "active",
+  "people": ["Adrián Artacho"],
+  "tags": ["MIDI", "Disklavier", "Interaction"],
+  "preview": "./preview.svg",
+  "previewAlt": "Schematic piano-roll illustration of a chord and its generated notes; not a performance recording.",
+  "embed": "./index.html",
+  "project": "../",
+  "repository": "https://github.com/MUK-research/PianoRules",
+  "documentation": "../docs/",
+  "year": 2026
+}
